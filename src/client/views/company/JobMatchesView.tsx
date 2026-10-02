@@ -34,7 +34,7 @@ const SOURCE_LABEL: Record<EvidenceSource, string> = {
 export function JobMatchesView({
   jobId,
   submissionHref = (id) => `/company/review/${id}`,
-  projectHref,
+  projectHref = (id) => `/company/projects/${id}`,
 }: JobMatchesViewProps) {
   const { overview, notFound, error, isPending, load } = useJobMatchesViewModel(jobId);
 

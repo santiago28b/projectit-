@@ -17,8 +17,9 @@ export const env = {
   get openaiApiKey() {
     return process.env.OPENAI_API_KEY ?? null;
   },
+  /** Live Claude for AI Evidence and match reasons; the mock runs when unset. */
   get anthropicApiKey() {
-    return process.env.ANTHROPIC_API_KEY ?? null;
+    return process.env.ANTHROPIC_API_KEY || null;
   },
   /** Override the Claude model without a code change. */
   get anthropicModel() {

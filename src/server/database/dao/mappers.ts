@@ -43,6 +43,18 @@ function toIso(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : value;
 }
 
+/** snake_case row → camelCase domain object, with Dates as ISO strings. */
+export function domainRow<T>(row: Record<string, unknown>): T {
+  return Object.fromEntries(
+    Object.entries(row).map(([key, value]) => [
+      key.replace(/_([a-z])/g, (_match, letter: string) =>
+        letter.toUpperCase(),
+      ),
+      value instanceof Date ? value.toISOString() : value,
+    ]),
+  ) as T;
+}
+
 export function toUser(row: UserRow): User {
   return {
     id: row.id,

@@ -4,10 +4,10 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] Create and publish a Company Project with a Rubric and Visibility
-- [ ] Sponsor a Platform Project with one click; the Sponsor's name shows on its card
-- [ ] The Sponsor can review Submissions to that Platform Project
-- [ ] Project dashboard shows invited and submitted counts, the deadline, and Submissions
-- [ ] Test: a Sponsor gains review access to that Platform Project's Submissions
+- [x] Create and publish a Company Project with a Rubric and Visibility
+- [x] Sponsor a Platform Project with one click; the Sponsor's name shows on its card
+- [x] The Sponsor can review Submissions to that Platform Project
+- [x] Project dashboard shows invited and submitted counts, the deadline, and Submissions
+- [x] Test: a Sponsor gains review access to that Platform Project's Submissions

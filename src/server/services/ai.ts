@@ -1,34 +1,130 @@
 import { env } from "@/server/lib/env";
-import type { EvidenceLevel } from "@/server/models/domain";
+import { claudeEvaluateSubmission } from "@/server/services/claudeEvaluator";
+import type {
+  ExtractedSkills,
+  GeneratedProject,
+  ProjectIdea,
+  SubmissionEvaluationResult,
+} from "@/shared/models/ai";
 
-export interface ExtractedSkills {
-  required: string[];
-  preferred: string[];
-}
+export type {
+  ExtractedSkills,
+  GeneratedProject,
+  ProjectIdea,
+  SubmissionEvaluationResult,
+} from "@/shared/models/ai";
 
-export interface ProjectIdea {
-  title: string;
-  summary: string;
-  skills: string[];
-}
-
-export interface GeneratedProject {
-  title: string;
+export interface EvaluateSubmissionInput {
+  projectTitle: string;
   scenario: string;
-  instructions: string;
-  skills: string[];
-  expectedDurationMinutes: number;
-  deliverables: string[];
-  rubric: { name: string; description: string }[];
+  projectSkills: string[];
+  writtenResponse: string;
+  repositoryUrl?: string;
 }
 
-export interface SubmissionEvaluationResult {
-  evidence: {
-    skill: string;
-    level: EvidenceLevel;
-    rationale: string;
-  }[];
-  followUpQuestions: string[];
+/** Words that show a skill was used, beyond the skill's own name. */
+const SKILL_TERMS: Record<string, string[]> = {
+  typescript: ["typescript", "typed", "types", "interface"],
+  react: ["react", "component", "hook", "useeffect", "usestate", "render"],
+  "rest apis": ["api", "endpoint", "fetch", "request", "response", "rest"],
+  debugging: ["debug", "bug", "root cause", "reproduc", "breakpoint", "trace"],
+  testing: ["test", "vitest", "jest", "coverage", "regression"],
+  sql: ["sql", "query", "join", "select", "group by"],
+  python: ["python", "pandas", "notebook"],
+  "data cleaning": ["clean", "dedup", "duplicate", "missing", "normaliz"],
+  "data visualization": ["chart", "plot", "graph", "visual", "dashboard"],
+  "product thinking": ["user", "customer", "impact", "goal", "outcome"],
+  prioritization: ["priorit", "rank", "rice", "cut", "defer"],
+  "written communication": ["explain", "summary", "plan", "document"],
+  "node.js": ["node", "express", "server"],
+  accessibility: ["accessib", "a11y", "aria", "screen reader", "focus", "keyboard", "label"],
+};
+
+/** Signs the Candidate explained *why*, not just *what*. */
+const REASONING = [
+  "because", "root cause", "trade-off", "tradeoff", "so that", "instead of",
+  "decided", "which meant", "the reason", "to avoid", "caused by",
+];
+
+const FOLLOW_UPS: Record<string, string> = {
+  typescript: "Where did the type system catch (or miss) a bug in this Project?",
+  react: "How would this component behave if the data loaded twice or out of order?",
+  "rest apis": "What would you change if the API started returning partial or slow responses?",
+  debugging: "Walk me through how you narrowed down the root cause. What did you rule out first?",
+  testing: "Which test would have caught the original bug, and what's still untested?",
+  sql: "How would your query perform with ten times the data?",
+  python: "What would you change to make this analysis repeatable next week?",
+  "data cleaning": "Which cleaning decision were you least sure about, and how would you check it?",
+  "data visualization": "Why did you pick these charts over the alternatives?",
+  "product thinking": "Who loses out under your plan, and how would you explain that to them?",
+  prioritization: "What would make you move the item you cut back into the plan?",
+  "written communication": "If a busy manager reads only one paragraph, which one should it be?",
+  "node.js": "How does your server behave when two requests change the same record?",
+  accessibility: "How did you verify the fixes with a screen reader or keyboard only?",
+};
+
+const GENERIC_FOLLOW_UPS = [
+  "What trade-off did you make that you'd revisit with more time?",
+  "How would you harden this for production?",
+];
+
+/** Matches each term at the start of a word ("test" hits "tests", not "latest"). */
+function wordStart(terms: string[]): RegExp {
+  const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`\\b(?:${escaped.join("|")})`, "i");
+}
+
+const REASONING_PATTERN = wordStart(REASONING);
+
+function patternFor(skill: string): RegExp {
+  const key = skill.trim().toLowerCase();
+  return wordStart(SKILL_TERMS[key] ?? [key]);
+}
+
+function snippet(sentence: string): string {
+  const clean = sentence.trim().replace(/\s+/g, " ");
+  return clean.length > 90 ? `${clean.slice(0, 87)}…` : clean;
+}
+
+/** Deterministic stand-in for the AI: reads the written explanation only. */
+export function mockEvaluateSubmission(
+  input: EvaluateSubmissionInput,
+): SubmissionEvaluationResult {
+  const sentences = input.writtenResponse
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const evidence = input.projectSkills.map((skill) => {
+    const pattern = patternFor(skill);
+    const mentions = sentences.filter((s) => pattern.test(s));
+    const reasoned = mentions.find((s) => REASONING_PATTERN.test(s));
+    if (reasoned)
+      return {
+        skill,
+        level: "strong" as const,
+        rationale: `Explains the ${skill} work and the reasoning behind it: "${snippet(reasoned)}"`,
+      };
+    if (mentions.length > 0)
+      return {
+        skill,
+        level: "partial" as const,
+        rationale: `Mentions ${skill} work ("${snippet(mentions[0])}") but doesn't explain why it was done that way.`,
+      };
+    return {
+      skill,
+      level: "not_shown" as const,
+      rationale: `The written explanation doesn't show ${skill}. The Walkthrough may cover it.`,
+    };
+  });
+
+  const shown = evidence.filter((e) => e.level !== "not_shown");
+  const followUpQuestions = [
+    ...shown.map((e) => FOLLOW_UPS[e.skill.trim().toLowerCase()]).filter(Boolean),
+    ...GENERIC_FOLLOW_UPS,
+  ].slice(0, 3);
+
+  return { evidence, followUpQuestions };
 }
 
 /**
@@ -38,11 +134,9 @@ export interface AIService {
   extractJobSkills(jobDescription: string): Promise<ExtractedSkills>;
   generateProjectIdeas(jobDescription: string): Promise<ProjectIdea[]>;
   generateProject(idea: ProjectIdea): Promise<GeneratedProject>;
-  evaluateSubmission(input: {
-    projectSkills: string[];
-    writtenResponse: string;
-    repositoryUrl?: string;
-  }): Promise<SubmissionEvaluationResult>;
+  evaluateSubmission(
+    input: EvaluateSubmissionInput,
+  ): Promise<SubmissionEvaluationResult>;
   explainMatch(input: {
     context: string;
     overlappingSkills: string[];
@@ -60,47 +154,82 @@ const mockAIService: AIService = {
     return [
       {
         title: "Broken Delivery Tracker",
-        summary: "Debug a failing logistics dashboard.",
-        skills: ["TypeScript", "React", "Debugging"],
+        scenario:
+          "Dispatchers say packages show as Delivered before the driver arrives, and the list blanks after refresh.",
+        skills: ["TypeScript", "React", "REST APIs", "Debugging", "Testing"],
+        expectedDurationMinutes: 90,
+        deliverables: [
+          "Repository URL",
+          "Written explanation",
+          "Walkthrough video",
+        ],
+        whyRelevant:
+          "Screens debugging and front-end skills the Job asks for in a realistic ops incident.",
       },
       {
         title: "API Contract Fix",
-        summary: "Repair mismatched REST responses.",
-        skills: ["REST APIs", "Testing"],
+        scenario:
+          "The mobile app and the REST API disagree on delivery statuses after a schema change.",
+        skills: ["REST APIs", "TypeScript", "Testing"],
+        expectedDurationMinutes: 75,
+        deliverables: ["Repository URL", "Walkthrough video"],
+        whyRelevant:
+          "Tests whether they can reconcile API contracts and cover the fix with tests.",
       },
       {
-        title: "Status Badges",
-        summary: "Add delivery status UI with tests.",
-        skills: ["React", "Testing"],
+        title: "Status Badge Suite",
+        scenario:
+          "Support needs clear status badges for delayed, out-for-delivery, and failed drops.",
+        skills: ["React", "Testing", "Debugging"],
+        expectedDurationMinutes: 60,
+        deliverables: [
+          "Repository URL",
+          "Written explanation",
+          "Walkthrough video",
+        ],
+        whyRelevant:
+          "Focuses on UI clarity and tests without needing a full stack rebuild.",
       },
     ];
   },
   async generateProject(idea) {
     return {
       title: idea.title,
-      scenario: idea.summary,
-      instructions: "Complete the task and record a Walkthrough.",
+      scenario: idea.scenario,
+      description: idea.whyRelevant,
+      instructions: [
+        "1. Clone the starter and reproduce the issue.",
+        "2. Fix the root cause with the smallest clear change.",
+        "3. Add tests that would have caught it.",
+        "4. Record a Walkthrough covering approach, decisions, and trade-offs.",
+      ].join("\n"),
       skills: idea.skills,
-      expectedDurationMinutes: 90,
-      deliverables: ["Repository URL", "Written explanation", "Walkthrough"],
+      expectedDurationMinutes: idea.expectedDurationMinutes,
+      difficulty: "Intermediate",
+      deliverables: idea.deliverables,
       rubric: [
-        { name: "Correctness", description: "Does the solution work?" },
-        { name: "Clarity", description: "Is the Walkthrough clear?" },
+        {
+          name: "Correctness",
+          description: "The reported issue is fixed and nothing else broke.",
+        },
+        {
+          name: "Debugging approach",
+          description: "Found the root cause methodically instead of guessing.",
+        },
+        {
+          name: "Testing",
+          description: "Tests would catch a regression of this bug.",
+        },
+        {
+          name: "Communication",
+          description:
+            "The Walkthrough explains decisions and trade-offs clearly.",
+        },
       ],
     };
   },
   async evaluateSubmission(input) {
-    return {
-      evidence: input.projectSkills.map((skill) => ({
-        skill,
-        level: "partial" as const,
-        rationale: "Mock AI assessment — set ANTHROPIC_API_KEY for live calls.",
-      })),
-      followUpQuestions: [
-        "What trade-offs did you make?",
-        "How would you harden this for production?",
-      ],
-    };
+    return mockEvaluateSubmission(input);
   },
   async explainMatch(input) {
     return [
@@ -114,7 +243,6 @@ const mockAIService: AIService = {
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const TIMEOUT_MS = 25_000;
-const LEVELS: EvidenceLevel[] = ["strong", "partial", "not_shown", "not_assessed"];
 
 /** One Claude call that must answer with JSON only. Throws on any problem. */
 async function askClaudeForJson<T>(system: string, user: string, maxTokens = 1200): Promise<T> {
@@ -169,100 +297,42 @@ function strings(v: unknown, max = 10): string[] {
     : [];
 }
 
-const liveAIService: AIService = {
-  // Project generation stays mocked for the hackathon (ticket 08).
-  extractJobSkills: (d) => mockAIService.extractJobSkills(d),
-  generateProjectIdeas: (d) => mockAIService.generateProjectIdeas(d),
-  generateProject: (i) => mockAIService.generateProject(i),
+/** Live Claude for match reasons; falls back to the mock on any failure. */
+function liveExplainMatch(input: { context: string; overlappingSkills: string[] }): Promise<string[]> {
+  return withFallback(
+    "explainMatch",
+    async () => {
+      const raw = await askClaudeForJson<{ reasons?: unknown }>(
+        [
+          "You explain why a Candidate and a Project or Job are a good Match on Project It.",
+          "Write 1–3 short, plain reasons (max 15 words each) grounded ONLY in the facts given.",
+          "Never use percentages or scores.",
+          'JSON shape: {"reasons":[string]}',
+        ].join("\n"),
+        `Context: ${input.context}\nOverlapping skills: ${input.overlappingSkills.join(", ") || "none"}`,
+        300,
+      );
+      const reasons = strings(raw.reasons, 3);
+      if (reasons.length === 0) throw new Error("no reasons");
+      return reasons;
+    },
+    () => mockAIService.explainMatch(input),
+  );
+}
 
-  evaluateSubmission(input) {
-    return withFallback(
-      "evaluateSubmission",
-      async () => {
-        const raw = await askClaudeForJson<{
-          evidence?: { skill?: unknown; level?: unknown; rationale?: unknown }[];
-          followUpQuestions?: unknown;
-        }>(
-          [
-            "You assess a Candidate's Submission to a short (1–2 hour) screening Project for Project It.",
-            "For EACH listed skill, judge how strongly the Submission shows it:",
-            '"strong" = clearly demonstrated with specifics; "partial" = some sign but thin or incomplete;',
-            '"not_shown" = the skill was relevant but the Submission shows no sign of it;',
-            '"not_assessed" = there is not enough material to judge.',
-            "Be fair and evidence-based. Quote or point to what in the Submission supports each level.",
-            "Never produce an overall score or percentage. Humans make the hiring decision.",
-            "Also write 3 short follow-up interview questions that probe the Candidate's decisions.",
-            'JSON shape: {"evidence":[{"skill":string,"level":"strong"|"partial"|"not_shown"|"not_assessed","rationale":string (max 2 sentences)}],"followUpQuestions":[string,string,string]}',
-          ].join("\n"),
-          [
-            `Skills to assess: ${input.projectSkills.join(", ")}`,
-            `Repository: ${input.repositoryUrl ?? "(none provided)"}`,
-            "Candidate's written explanation:",
-            '"""',
-            input.writtenResponse.slice(0, 8000) || "(empty)",
-            '"""',
-          ].join("\n"),
-        );
-
-        // Keep exactly the Project's skills, in order; fill gaps as not_assessed.
-        const bySkill = new Map(
-          (raw.evidence ?? [])
-            .filter((e) => typeof e.skill === "string")
-            .map((e) => [String(e.skill).trim().toLowerCase(), e]),
-        );
-        const evidence = input.projectSkills.map((skill) => {
-          const e = bySkill.get(skill.trim().toLowerCase());
-          const level = LEVELS.includes(e?.level as EvidenceLevel)
-            ? (e!.level as EvidenceLevel)
-            : "not_assessed";
-          const rationale =
-            typeof e?.rationale === "string" && e.rationale.trim()
-              ? e.rationale.trim()
-              : "Not enough in the Submission to judge this skill.";
-          return { skill, level, rationale };
-        });
-
-        const followUpQuestions = strings(raw.followUpQuestions, 5);
-        if (evidence.every((e) => e.level === "not_assessed") && followUpQuestions.length === 0) {
-          throw new Error("Claude response was empty");
-        }
-        return {
-          evidence,
-          followUpQuestions: followUpQuestions.length
-            ? followUpQuestions
-            : (await mockAIService.evaluateSubmission(input)).followUpQuestions,
-        };
-      },
-      () => mockAIService.evaluateSubmission(input),
-    );
-  },
-
-  explainMatch(input) {
-    return withFallback(
-      "explainMatch",
-      async () => {
-        const raw = await askClaudeForJson<{ reasons?: unknown }>(
-          [
-            "You explain why a Candidate and a Project or Job are a good Match on Project It.",
-            "Write 1–3 short, plain reasons (max 15 words each) grounded ONLY in the facts given.",
-            "Never use percentages or scores.",
-            'JSON shape: {"reasons":[string]}',
-          ].join("\n"),
-          `Context: ${input.context}\nOverlapping skills: ${input.overlappingSkills.join(", ") || "none"}`,
-          300,
-        );
-        const reasons = strings(raw.reasons, 3);
-        if (reasons.length === 0) throw new Error("no reasons");
-        return reasons;
-      },
-      () => mockAIService.explainMatch(input),
-    );
-  },
-};
-
-/** Live Claude when ANTHROPIC_API_KEY is set; otherwise the mock. */
+/**
+ * Live Claude for `evaluateSubmission` and `explainMatch` when ANTHROPIC_API_KEY is set.
+ * Project generation stays mocked for now (faked by design).
+ * Callers fall back to the mock when the live evaluateSubmission call fails.
+ */
 export function getAIService(): AIService {
-  return env.anthropicApiKey ? liveAIService : mockAIService;
+  const apiKey = env.anthropicApiKey;
+  if (!apiKey) return mockAIService;
+  return {
+    ...mockAIService,
+    evaluateSubmission: (input) => claudeEvaluateSubmission(apiKey, input),
+    explainMatch: liveExplainMatch,
+  };
 }
 
 export const aiService = getAIService();

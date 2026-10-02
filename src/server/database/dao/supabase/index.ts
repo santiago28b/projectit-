@@ -63,6 +63,8 @@ export const supabaseCompaniesDao = {
   },
 };
 
+export { supabaseProjectsDao } from "./projects";
+
 export const supabaseCandidatesDao = {
   async findById(id: string): Promise<Candidate | null> {
     const { data, error } = await createAdminClient()

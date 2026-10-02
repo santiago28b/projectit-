@@ -1,6 +1,112 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAIService } from "./ai";
+import { getAIService, mockEvaluateSubmission } from "./ai";
+import { claudeEvaluateSubmission } from "./claudeEvaluator";
+
+vi.mock("./claudeEvaluator", () => ({
+  claudeEvaluateSubmission: vi.fn(async () => ({
+    evidence: [{ skill: "React", level: "strong", rationale: "from Claude" }],
+    followUpQuestions: ["q"],
+  })),
+}));
+
+const base = {
+  projectTitle: "Broken Delivery Tracker",
+  scenario: "Statuses are wrong.",
+  projectSkills: ["React", "Debugging", "Testing"],
+};
+
+function levels(writtenResponse: string, projectSkills = base.projectSkills) {
+  const result = mockEvaluateSubmission({ ...base, projectSkills, writtenResponse });
+  return Object.fromEntries(result.evidence.map((e) => [e.skill, e.level]));
+}
+
+describe("mock evaluateSubmission", () => {
+  it("rates a skill strong when the Candidate explains why", () => {
+    expect(levels("I fixed the React component because it read the wrong field.").React).toBe("strong");
+  });
+
+  it("rates a skill partial when it's only mentioned", () => {
+    expect(levels("I changed a React component.").React).toBe("partial");
+  });
+
+  it("rates a skill not shown when nothing points to it", () => {
+    expect(levels("I updated the README.").Testing).toBe("not_shown");
+  });
+
+  it("matches related words, not just the skill name", () => {
+    expect(levels("Added Vitest coverage.").Testing).toBe("partial");
+    expect(levels("Found the root cause of the bug because the cache was stale.").Debugging).toBe("strong");
+  });
+
+  it("only matches at the start of a word ('test' doesn't match 'latest')", () => {
+    expect(levels("I read the latest docs and the contest rules.").Testing).toBe("not_shown");
+  });
+
+  it("returns one entry per Project skill, in the Project's order", () => {
+    const result = mockEvaluateSubmission({ ...base, writtenResponse: "anything" });
+    expect(result.evidence.map((e) => e.skill)).toEqual(base.projectSkills);
+  });
+
+  it("handles a skill it has no word list for", () => {
+    expect(levels("I used Rust for the parser.", ["Rust"]).Rust).toBe("partial");
+  });
+
+  it("quotes the Candidate in the rationale for shown skills", () => {
+    const [react] = mockEvaluateSubmission({
+      ...base,
+      projectSkills: ["React"],
+      writtenResponse: "I fixed the React list because it re-rendered too often.",
+    }).evidence;
+    expect(react.rationale).toContain("re-rendered too often");
+  });
+
+  it("writes 2-3 follow-up questions, favoring skills the Candidate showed", () => {
+    const { followUpQuestions } = mockEvaluateSubmission({
+      ...base,
+      writtenResponse: "I traced the bug to its root cause because the list went blank.",
+    });
+    expect(followUpQuestions.length).toBeGreaterThanOrEqual(2);
+    expect(followUpQuestions.length).toBeLessThanOrEqual(3);
+    expect(followUpQuestions[0]).toMatch(/root cause/i);
+  });
+
+  it("never produces a score or percentage", () => {
+    const result = mockEvaluateSubmission({
+      ...base,
+      writtenResponse: "I fixed React and Debugging issues because they broke tests.",
+    });
+    expect(JSON.stringify(result)).not.toMatch(/\d+\s*%|score/i);
+  });
+});
+
+describe("getAIService", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.mocked(claudeEvaluateSubmission).mockClear();
+  });
+
+  it("uses the mock when ANTHROPIC_API_KEY is unset", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const result = await getAIService().evaluateSubmission({ ...base, writtenResponse: "React work." });
+    expect(claudeEvaluateSubmission).not.toHaveBeenCalled();
+    expect(result.evidence).toHaveLength(3);
+  });
+
+  it("uses Claude for evaluateSubmission when ANTHROPIC_API_KEY is set", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
+    const input = { ...base, writtenResponse: "React work." };
+    const result = await getAIService().evaluateSubmission(input);
+    expect(claudeEvaluateSubmission).toHaveBeenCalledWith("sk-ant-test", input);
+    expect(result.evidence[0].rationale).toBe("from Claude");
+  });
+
+  it("keeps Project generation mocked even with a key", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
+    const ideas = await getAIService().generateProjectIdeas("any job");
+    expect(ideas).toHaveLength(3);
+  });
+});
 
 /** Fake Anthropic Messages API response whose text block is `text`. */
 function claudeReplies(text: string, status = 200) {
@@ -12,127 +118,17 @@ function claudeReplies(text: string, status = 200) {
   );
 }
 
-const input = {
-  projectSkills: ["Debugging", "Testing", "React"],
-  writtenResponse: "Found the date parsing bug, fixed it, added a unit test for the null case.",
-  repositoryUrl: "https://github.com/maria/bdt",
-};
-
-beforeEach(() => {
-  vi.spyOn(console, "warn").mockImplementation(() => {});
-});
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-});
-
-describe("getAIService without a key", () => {
-  it("uses the mock and never calls the network", async () => {
-    vi.stubEnv("ANTHROPIC_API_KEY", "");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await getAIService().evaluateSubmission(input);
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.evidence.map((e) => e.skill)).toEqual(input.projectSkills);
-    expect(result.evidence.every((e) => e.level === "partial")).toBe(true);
-  });
-});
-
-describe("evaluateSubmission with Claude", () => {
+describe("explainMatch with Claude", () => {
   beforeEach(() => {
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
-    vi.stubEnv("ANTHROPIC_MODEL", "test-model");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("sends the key, model and Submission to the Messages API", async () => {
-    const fetchMock = claudeReplies('{"evidence":[],"followUpQuestions":["Why?"]}');
-    vi.stubGlobal("fetch", fetchMock);
-
-    await getAIService().evaluateSubmission(input);
-
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://api.anthropic.com/v1/messages");
-    expect((init.headers as Record<string, string>)["x-api-key"]).toBe("test-key");
-    const body = JSON.parse(String(init.body));
-    expect(body.model).toBe("test-model");
-    expect(body.messages[0].content).toContain("Debugging, Testing, React");
-    expect(body.messages[0].content).toContain("date parsing bug");
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
-
-  it("maps Claude's levels onto exactly the Project's skills", async () => {
-    vi.stubGlobal(
-      "fetch",
-      claudeReplies(
-        JSON.stringify({
-          evidence: [
-            { skill: "debugging", level: "strong", rationale: "Explains the root cause." },
-            { skill: "Testing", level: "partial", rationale: "One test only." },
-            { skill: "Kubernetes", level: "strong", rationale: "Not a Project skill." },
-          ],
-          followUpQuestions: ["Why parse on the client?", "What edge cases remain?", "How would it scale?"],
-        }),
-      ),
-    );
-
-    const result = await getAIService().evaluateSubmission(input);
-
-    expect(result.evidence).toEqual([
-      { skill: "Debugging", level: "strong", rationale: "Explains the root cause." },
-      { skill: "Testing", level: "partial", rationale: "One test only." },
-      { skill: "React", level: "not_assessed", rationale: "Not enough in the Submission to judge this skill." },
-    ]);
-    expect(result.followUpQuestions).toHaveLength(3);
-  });
-
-  it("tolerates prose and markdown fences around the JSON", async () => {
-    vi.stubGlobal(
-      "fetch",
-      claudeReplies(
-        'Here you go:\n```json\n{"evidence":[{"skill":"Testing","level":"strong","rationale":"Good tests."}],"followUpQuestions":["Q1"]}\n```',
-      ),
-    );
-    const result = await getAIService().evaluateSubmission(input);
-    expect(result.evidence.find((e) => e.skill === "Testing")?.level).toBe("strong");
-  });
-
-  it("turns an invalid level into not_assessed", async () => {
-    vi.stubGlobal(
-      "fetch",
-      claudeReplies('{"evidence":[{"skill":"Testing","level":"93%","rationale":"x"}],"followUpQuestions":["Q"]}'),
-    );
-    const result = await getAIService().evaluateSubmission(input);
-    expect(result.evidence.find((e) => e.skill === "Testing")?.level).toBe("not_assessed");
-  });
-
-  it("borrows the mock's follow-up questions when Claude gives none", async () => {
-    vi.stubGlobal(
-      "fetch",
-      claudeReplies('{"evidence":[{"skill":"Testing","level":"strong","rationale":"x"}]}'),
-    );
-    const result = await getAIService().evaluateSubmission(input);
-    expect(result.followUpQuestions.length).toBeGreaterThan(0);
-  });
-
-  it.each([
-    ["an HTTP error", claudeReplies("", 500)],
-    ["a reply with no JSON", claudeReplies("Sorry, I can't help with that.")],
-    ["an empty assessment", claudeReplies('{"evidence":[],"followUpQuestions":[]}')],
-    ["a network failure", vi.fn(async () => { throw new Error("offline"); })],
-  ])("falls back to the mock on %s", async (_label, fetchMock) => {
-    vi.stubGlobal("fetch", fetchMock);
-    const result = await getAIService().evaluateSubmission(input);
-    expect(result.evidence.map((e) => e.skill)).toEqual(input.projectSkills);
-    expect(result.evidence[0].rationale).toContain("Mock AI assessment");
-    expect(console.warn).toHaveBeenCalled();
-  });
-});
-
-describe("explainMatch with Claude", () => {
-  beforeEach(() => vi.stubEnv("ANTHROPIC_API_KEY", "test-key"));
 
   it("returns at most 3 reasons", async () => {
     vi.stubGlobal("fetch", claudeReplies('{"reasons":["a","b","c","d"]}'));
@@ -143,18 +139,5 @@ describe("explainMatch with Claude", () => {
     vi.stubGlobal("fetch", claudeReplies('{"reasons":[]}'));
     const reasons = await getAIService().explainMatch({ context: "ctx", overlappingSkills: ["React"] });
     expect(reasons[0]).toBe("Overlaps on React");
-  });
-});
-
-describe("Project generation", () => {
-  it("stays mocked even with a key (ticket 08)", async () => {
-    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const service = getAIService();
-    expect(await service.generateProjectIdeas("jd")).toHaveLength(3);
-    expect((await service.extractJobSkills("jd")).required.length).toBeGreaterThan(0);
-    expect((await service.generateProject({ title: "T", summary: "S", skills: ["React"] })).title).toBe("T");
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

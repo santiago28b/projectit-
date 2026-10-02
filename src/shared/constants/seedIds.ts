@@ -33,6 +33,7 @@ export const SEED_IDS = {
   salesDashboard: seedId(402),
   featureBacklog: seedId(403),
   accessibleCheckout: seedId(404),
+  liftLineReport: seedId(405),
   appointmentReminderApi: seedId(411),
 
   // jobs

@@ -10,14 +10,17 @@ import "server-only";
 
 import { getDatabaseBackend } from "@/server/lib/databaseBackend";
 
+import type { ProjectsDao } from "./pg/projects";
 import {
   pgCandidatesDao,
   pgCompaniesDao,
+  pgProjectsDao,
   pgUsersDao,
 } from "./pg";
 import {
   supabaseCandidatesDao,
   supabaseCompaniesDao,
+  supabaseProjectsDao,
   supabaseUsersDao,
 } from "./supabase";
 
@@ -32,29 +35,12 @@ export const companiesDao =
 export const candidatesDao =
   backend === "supabase" ? supabaseCandidatesDao : pgCandidatesDao;
 
-export const projectsDao = {
-  async listPublished() {
-    throw new Error("projectsDao.listPublished not implemented");
-  },
-  async findById(_id: string) {
-    void _id;
-    throw new Error("projectsDao.findById not implemented");
-  },
-};
+export const projectsDao = (
+  backend === "supabase" ? supabaseProjectsDao : pgProjectsDao
+) as ProjectsDao;
 
-export const submissionsDao = {
-  async findByProjectAndCandidate(_projectId: string, _candidateId: string) {
-    void _projectId;
-    void _candidateId;
-    throw new Error(
-      "submissionsDao.findByProjectAndCandidate not implemented",
-    );
-  },
-  async insert(_row: unknown) {
-    void _row;
-    throw new Error("submissionsDao.insert not implemented");
-  },
-};
+// Submissions are Postgres-only (local DB or DATABASE_URL to Supabase).
+export { pgSubmissionsDao as submissionsDao } from "./pg/submissions";
 
 export const evidenceDao = {
   async listByCandidate(_candidateId: string) {
