@@ -13,7 +13,7 @@
 - [x] One-click role switcher between Maria and Summit Logistics (and other seeded accounts): a cookie holding a seeded user id, not Supabase Auth. Server reads use the admin client so RLS doesn't block the demo
 - [x] Landing page: "See what candidates can do, not just what their resumes say," with I'm Hiring and I'm Looking for Opportunities buttons (`src/client/views/LandingView.tsx`; portal stubs at `/candidate`, `/company`, `/admin`)
 - [x] `AIService` has `extractJobSkills`, `generateProjectIdeas`, `generateProject`, `evaluateSubmission`, and `explainMatch`. The mock returns canned output and runs when there's no API key or a call fails (`src/server/services/ai.ts`)
-- [ ] Vitest set up for **pure functions** (matching, Evidence profile, eligibility). No test database: everyone shares one Supabase cloud DB
+- [x] Vitest set up for **pure functions** (matching, Evidence profile, eligibility). No test database: everyone shares one Supabase cloud DB
 - [x] One command resets and re-seeds the database. **Only the schema owner (Person A) runs it**, since the DB is shared
 
 ## Comments
@@ -39,4 +39,4 @@ Architecture now matches Prometheus: client `repos`/`services` call `/api/*`; se
 - App shell with "Viewing as" dropdown (`src/client/components/AppShell.tsx`); landing buttons switch to Summit / Maria
 - shadcn/ui (button, card, badge, select, dropdown-menu); role colors as Tailwind tokens (`bg-company`, `text-candidate`, `text-ai`, `bg-platform-soft`, …); `RoleBadge` and `EvidenceSourceBadge` in `src/client/components/RoleBadge.tsx`
 
-Still open: Vitest (Person C).
+Vitest covers matching, Evidence profile, eligibility, project-create validation, and role home routes (`npm test`).

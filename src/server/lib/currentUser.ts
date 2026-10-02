@@ -7,8 +7,11 @@ import {
   companiesDao,
   usersDao,
 } from "@/server/database/dao";
-import type { CurrentUser, UserRole } from "@/server/models/domain";
+import type { CurrentUser } from "@/server/models/domain";
 import { CURRENT_USER_COOKIE } from "@/shared/constants";
+import { homeForRole } from "@/shared/routing";
+
+export { homeForRole };
 
 /**
  * Who the role switcher says is looking, or null if nobody is picked yet.
@@ -33,11 +36,4 @@ export async function loadCurrentUser(
   ]);
 
   return { user, candidate, company };
-}
-
-/** Portal a role lands on after switching. */
-export function homeForRole(role: UserRole): string {
-  if (role === "candidate") return "/candidate";
-  if (role === "company_admin") return "/company";
-  return "/admin";
 }
