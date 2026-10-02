@@ -1,8 +1,11 @@
 "use client";
 
-import Link from "next/link";
+import { useRoleSwitcherViewModel } from "@/client/viewmodels/useRoleSwitcherViewModel";
+import { SEED_IDS } from "@/shared/constants/seedIds";
 
 export function LandingView() {
+  const { switchTo, isPending } = useRoleSwitcherViewModel();
+
   return (
     <main className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-center gap-10 px-6 py-16">
       <div className="space-y-4">
@@ -19,18 +22,23 @@ export function LandingView() {
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Link
-          href="/company"
-          className="inline-flex h-11 items-center justify-center rounded-md bg-indigo-600 px-5 text-sm font-medium text-white hover:bg-indigo-500"
+        {/* Demo shortcut: each button signs in as the seeded account for that side. */}
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => switchTo(SEED_IDS.summitAdmin, "/company")}
+          className="inline-flex h-11 items-center justify-center rounded-md bg-indigo-600 px-5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
         >
           I&apos;m Hiring
-        </Link>
-        <Link
-          href="/candidate"
-          className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 px-5 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+        </button>
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => switchTo(SEED_IDS.mariaUser, "/candidate")}
+          className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 px-5 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-60"
         >
           I&apos;m Looking for Opportunities
-        </Link>
+        </button>
       </div>
     </main>
   );
