@@ -17,4 +17,16 @@ export const matchingController = {
       return jsonError(err);
     }
   },
+
+  async jobOverview(jobId: string) {
+    try {
+      const overview = await matchingService.jobOverview(jobId);
+      if (!overview) {
+        return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      }
+      return NextResponse.json({ overview });
+    } catch (err) {
+      return jsonError(err);
+    }
+  },
 };

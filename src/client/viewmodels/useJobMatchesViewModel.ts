@@ -2,12 +2,16 @@
 
 import { useCallback, useState, useTransition } from "react";
 
-import { jobOverviewAction } from "@/server/actions/matching";
-import type { JobOverview } from "@/server/services/matching";
+import { ApiError } from "@/client/repos/http";
+import {
+  matchingService,
+  type JobOverview,
+} from "@/client/services/matchingService";
 
 /**
  * Company Job page ViewModel — the Job, Candidates who fit, and
  * Projects that test it, each with reasons.
+ * Talks to client matchingService → matchingRepo → /api/matching/jobs/[id].
  */
 export function useJobMatchesViewModel(jobId: string) {
   const [overview, setOverview] = useState<JobOverview | null>(null);
@@ -19,10 +23,13 @@ export function useJobMatchesViewModel(jobId: string) {
     startTransition(async () => {
       try {
         setError(null);
-        const result = await jobOverviewAction(jobId);
-        setNotFound(result === null);
-        setOverview(result);
+        setNotFound(false);
+        setOverview(await matchingService.jobOverview(jobId));
       } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          setNotFound(true);
+          return;
+        }
         setError(err instanceof Error ? err.message : "Failed to load");
       }
     });

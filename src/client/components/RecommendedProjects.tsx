@@ -8,7 +8,7 @@ import { useMarketplaceViewModel } from "@/client/viewmodels/useMarketplaceViewM
 interface RecommendedProjectsProps {
   /** The signed-in Candidate (from the role switcher). */
   candidateId: string | null;
-  /** Where a card links to. Defaults to the Project detail route. */
+  /** Where a card links to (Project detail, ticket 02). Cards aren't links until it exists. */
   projectHref?: (projectId: string) => string;
   /** How many cards to show. */
   limit?: number;
@@ -21,7 +21,7 @@ interface RecommendedProjectsProps {
  */
 export function RecommendedProjects({
   candidateId,
-  projectHref = (id) => `/candidate/projects/${id}`,
+  projectHref,
   limit = 3,
 }: RecommendedProjectsProps) {
   const { recommendations, error, isPending, loadRecommendations } =
@@ -87,8 +87,8 @@ export function RecommendedProjects({
         <ul className="grid gap-4 md:grid-cols-3">
           {shown.map(({ item: project, reasons }) => (
             <li key={project.id}>
-              <Link
-                href={projectHref(project.id)}
+              <MaybeLink
+                href={projectHref?.(project.id)}
                 className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-teal-300 hover:shadow-md"
               >
                 <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -131,12 +131,28 @@ export function RecommendedProjects({
                     ))}
                   </ul>
                 </div>
-              </Link>
+              </MaybeLink>
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function MaybeLink({
+  href,
+  className,
+  children,
+}: {
+  href?: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return href ? (
+    <Link href={href} className={className}>{children}</Link>
+  ) : (
+    <div className={className}>{children}</div>
   );
 }
 

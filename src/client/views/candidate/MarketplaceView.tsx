@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 
-export function MarketplaceView() {
+import { RecommendedProjects } from "@/client/components/RecommendedProjects";
+
+export function MarketplaceView({ candidateId = null }: { candidateId?: string | null }) {
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
       <p className="text-sm font-medium text-emerald-700">Marketplace</p>
@@ -13,6 +15,9 @@ export function MarketplaceView() {
         Recommended-for-you and Visibility filtering will load through the
         Marketplace ViewModel.
       </p>
+      <div className="mt-10">
+        <RecommendedProjects candidateId={candidateId} />
+      </div>
       <Link
         href="/candidate"
         className="mt-8 inline-block text-sm font-medium text-indigo-600"

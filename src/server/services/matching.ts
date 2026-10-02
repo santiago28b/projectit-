@@ -44,6 +44,7 @@ export interface MatchingService {
   candidatesForJob(jobId: string): Promise<MatchResult<JobCandidateMatch>[]>;
   projectsForJob(jobId: string): Promise<MatchResult<Project>[]>;
   jobOverview(jobId: string): Promise<JobOverview | null>;
+  listJobsForCompany(companyId: string): Promise<Job[]>;
 }
 
 /** Evidence profiles for many Candidates with two queries total. */
@@ -144,5 +145,9 @@ export const matchingService: MatchingService = {
     }
 
     return { job, candidates, projects, reviewableSubmissions };
+  },
+
+  async listJobsForCompany(companyId) {
+    return repo.listJobsForCompany(companyId);
   },
 };
