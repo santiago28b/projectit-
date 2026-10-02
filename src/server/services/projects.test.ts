@@ -106,3 +106,49 @@ describe("Project detail", () => {
     expect(detail?.mySubmissionId).toBe("sub-1");
   });
 });
+
+describe("more Visibility rules", () => {
+  it("never lists an unpublished Project, even a public one", async () => {
+    const draft = { ...project("draft", "public"), status: "draft" as const };
+    const dao = { ...fakeDao({}), listPublishedCards: async () => [draft] };
+    expect(await createProjectsService(dao).listMarketplace(maria)).toEqual([]);
+  });
+
+  it("matches university and region names regardless of case and spacing", async () => {
+    const shouty = project("shouty", "university", "  UNIVERSITY OF UTAH ");
+    const dao = { ...fakeDao({}), listPublishedCards: async () => [shouty] };
+    const ids = (await createProjectsService(dao).listMarketplace(maria)).map((p) => p.id);
+    expect(ids).toEqual(["shouty"]);
+  });
+
+  it("hides a university Project from a Candidate with no university", async () => {
+    const service = createProjectsService(fakeDao({}));
+    const ids = (await service.listMarketplace({ ...maria, university: null })).map((p) => p.id);
+    expect(ids).not.toContain("my-university");
+  });
+
+  it("lets a Candidate reopen a Project they submitted to, even if no longer eligible", async () => {
+    const service = createProjectsService(fakeDao({ submissionId: "sub-1" }));
+    const detail = await service.getDetail("invite-only", maria);
+    expect(detail?.mySubmissionId).toBe("sub-1");
+  });
+
+  it("returns null for a Project that doesn't exist", async () => {
+    const service = createProjectsService(fakeDao({}));
+    expect(await service.getDetail("missing", maria)).toBeNull();
+  });
+
+  it("includes the Rubric on the detail page", async () => {
+    const rubric = [{ name: "Correctness", description: "Works" }];
+    const dao = { ...fakeDao({}), rubric: async () => rubric };
+    expect((await createProjectsService(dao).getDetail("public", maria))?.rubric).toEqual(rubric);
+  });
+
+  it("canStart follows the same rules as the Marketplace", async () => {
+    const service = createProjectsService(fakeDao({ invited: ["invite-only"] }));
+    const byId = (id: string) => catalog.find((p) => p.id === id)!;
+    expect(await service.canStart(byId("public"), maria)).toBe(true);
+    expect(await service.canStart(byId("invite-only"), maria)).toBe(true);
+    expect(await service.canStart(byId("other-region"), maria)).toBe(false);
+  });
+});

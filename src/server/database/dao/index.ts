@@ -39,19 +39,8 @@ export const projectsDao = (
   backend === "supabase" ? supabaseProjectsDao : pgProjectsDao
 ) as ProjectsDao;
 
-export const submissionsDao = {
-  async findByProjectAndCandidate(_projectId: string, _candidateId: string) {
-    void _projectId;
-    void _candidateId;
-    throw new Error(
-      "submissionsDao.findByProjectAndCandidate not implemented",
-    );
-  },
-  async insert(_row: unknown) {
-    void _row;
-    throw new Error("submissionsDao.insert not implemented");
-  },
-};
+// Submissions are Postgres-only (local DB or DATABASE_URL to Supabase).
+export { pgSubmissionsDao as submissionsDao } from "./pg/submissions";
 
 export const evidenceDao = {
   async listByCandidate(_candidateId: string) {

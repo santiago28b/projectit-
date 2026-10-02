@@ -105,7 +105,7 @@ function parseCreateBody(body: unknown): CreateProjectInput | NextResponse {
 
 export function noCandidate() {
   return NextResponse.json(
-    { error: "Switch to a Candidate account to see Projects" },
+    { error: "Switch to a Candidate account first" },
     { status: 401 },
   );
 }

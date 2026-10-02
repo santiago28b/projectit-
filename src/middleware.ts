@@ -8,8 +8,10 @@ export async function middleware(_request: NextRequest) {
   return NextResponse.next();
 }
 
+// api/uploads is skipped: Proxy buffers request bodies to 10MB by default,
+// which would silently cut off Walkthrough video uploads.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/uploads|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

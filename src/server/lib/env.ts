@@ -17,4 +17,8 @@ export const env = {
   get openaiApiKey() {
     return process.env.OPENAI_API_KEY ?? null;
   },
+  /** Live Claude for evaluateSubmission; the mock runs when unset. */
+  get anthropicApiKey() {
+    return process.env.ANTHROPIC_API_KEY || null;
+  },
 };
