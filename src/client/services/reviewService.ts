@@ -5,6 +5,7 @@ export const reviewService = {
   saveEvaluation: reviewRepo.saveEvaluation,
   override: reviewRepo.override,
   removeFromShortlist: reviewRepo.removeFromShortlist,
+  retryAssessment: reviewRepo.retryAssessment,
 
   getReviewScreen(submissionId: string, signal?: AbortSignal) {
     return reviewRepo.getReviewScreen(submissionId, signal);

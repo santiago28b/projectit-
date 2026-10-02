@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { NewSubmission, SubmissionsDao } from "@/server/database/dao/pg/submissions";
-import type { AIService } from "@/server/services/ai";
 import type { Candidate, Project, Submission } from "@/shared/models/domain";
 
 import { createSubmissionsService, SubmissionError } from "./submissions";
@@ -46,10 +45,10 @@ const goodInput = {
 function setup(
   options: {
     existingId?: string | null;
-    ai?: AIService;
     eligible?: boolean;
     project?: Project;
     findMine?: SubmissionsDao["findMine"];
+    lengthCheck?: { ok: true } | { ok: false; message: string };
   } = {},
 ) {
   const writes: NewSubmission[] = [];
@@ -57,28 +56,17 @@ function setup(
   const dao = {
     findProject: async (id: string) => (id === current.id ? current : null),
     findId: async () => options.existingId ?? null,
-    createWithEvidence: async (input: NewSubmission) => {
+    create: async (input: NewSubmission) => {
       writes.push(input);
-      return { id: "sub-1", ...input } as unknown as Submission;
+      return { id: "sub-1", ...input, assessmentStatus: "pending" } as unknown as Submission;
     },
     listMine: async () => [],
     findMine: options.findMine ?? (async () => null),
   } as unknown as SubmissionsDao;
-  const ai: AIService =
-    options.ai ??
-    ({
-      evaluateSubmission: async () => ({
-        evidence: [
-          { skill: "debugging", level: "strong", rationale: "Found the root cause." },
-          { skill: "React", level: "partial", rationale: "Touched the effect." },
-        ],
-        followUpQuestions: ["How did you find the stale cursor?"],
-      }),
-    } as unknown as AIService);
   const service = createSubmissionsService({
     dao,
-    ai,
     projects: { canStart: async () => options.eligible ?? true },
+    checkWalkthroughLength: async () => options.lengthCheck ?? { ok: true },
     now: () => new Date("2026-10-02T12:00:00Z"),
   });
   return { service, writes };
@@ -110,40 +98,37 @@ describe("submitting a Project", () => {
       dao: {
         findProject: async () => project,
         findId: async () => null,
-        createWithEvidence: async () => {
+        create: async () => {
           throw Object.assign(new Error("duplicate key"), { code: "23505" });
         },
       } as unknown as SubmissionsDao,
-      ai: { evaluateSubmission: async () => ({ evidence: [], followUpQuestions: [] }) } as unknown as AIService,
       projects: { canStart: async () => true },
       now: () => new Date("2026-10-02T12:00:00Z"),
     });
     expect((await rejection(racing.submit(maria, goodInput))).status).toBe(409);
   });
 
-  it("writes AI-assessed Evidence for every Project skill, plus follow-up questions", async () => {
+  it("saves the Submission right away with its Assessment pending, and no Evidence yet", async () => {
     const { service, writes } = setup();
-    await service.submit(maria, goodInput);
-    expect(writes[0].evidence).toEqual([
-      { skill: "React", level: "partial", rationale: "Touched the effect." },
-      { skill: "Debugging", level: "strong", rationale: "Found the root cause." },
-      { skill: "Testing", level: "not_assessed", rationale: "" },
-    ]);
-    expect(writes[0].followUpQuestions).toEqual(["How did you find the stale cursor?"]);
+    const submission = await service.submit(maria, goodInput);
+    expect(submission.assessmentStatus).toBe("pending");
+    expect(writes[0]).toEqual({
+      projectId: "bdt",
+      candidateId: "maria",
+      writtenResponse: goodInput.writtenResponse,
+      repositoryUrl: goodInput.repositoryUrl,
+      fileUrls: [],
+      videoUrl: goodInput.videoUrl,
+    });
   });
 
-  it("falls back to the mock when the AI fails", async () => {
-    const failing = {
-      evaluateSubmission: async () => {
-        throw new Error("API down");
-      },
-    } as unknown as AIService;
-    const { service, writes } = setup({ ai: failing });
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    await service.submit(maria, goodInput);
-    const levels = Object.fromEntries(writes[0].evidence.map((e) => [e.skill, e.level]));
-    expect(levels).toEqual({ React: "strong", Debugging: "strong", Testing: "partial" });
-    expect(writes[0].followUpQuestions.length).toBeGreaterThan(0);
+  it("rejects a Walkthrough over 2 minutes that skipped the upload check (S3) and writes nothing", async () => {
+    const message = "Your Walkthrough is 3:05 long. Keep it to 2 minutes or less.";
+    const { service, writes } = setup({ lengthCheck: { ok: false, message } });
+    const err = await rejection(service.submit(maria, goodInput));
+    expect(err.status).toBe(400);
+    expect(err.message).toBe(message);
+    expect(writes).toHaveLength(0);
   });
 
   it("rejects a Project the Candidate isn't eligible for", async () => {
@@ -200,70 +185,6 @@ describe("submit input rules", () => {
     const { service, writes } = setup({ project: { ...project, deadline: null } });
     await service.submit(maria, goodInput);
     expect(writes).toHaveLength(1);
-  });
-});
-
-describe("AI evaluation fallback", () => {
-  it("uses the mock when the AI takes longer than 30 seconds", async () => {
-    vi.useFakeTimers();
-    try {
-      const hanging = {
-        evaluateSubmission: () => new Promise(() => {}),
-      } as unknown as AIService;
-      vi.spyOn(console, "warn").mockImplementation(() => {});
-      const { service, writes } = setup({ ai: hanging });
-      const pending = service.submit(maria, goodInput);
-      await vi.advanceTimersByTimeAsync(30_000);
-      await pending;
-      expect(writes[0].evidence.map((e) => e.level)).toEqual(["strong", "strong", "partial"]);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("uses the mock when the AI returns no Evidence at all", async () => {
-    const empty = {
-      evaluateSubmission: async () => ({ evidence: [], followUpQuestions: [] }),
-    } as unknown as AIService;
-    const { service, writes } = setup({ ai: empty });
-    await service.submit(maria, goodInput);
-    expect(writes[0].evidence.every((e) => e.level !== "not_assessed")).toBe(true);
-  });
-
-  it("stores a made-up Evidence level as not assessed", async () => {
-    const inventive = {
-      evaluateSubmission: async () => ({
-        evidence: [{ skill: "React", level: "excellent", rationale: "Great!" }],
-        followUpQuestions: [],
-      }),
-    } as unknown as AIService;
-    const { service, writes } = setup({ ai: inventive });
-    await service.submit(maria, goodInput);
-    expect(writes[0].evidence[0]).toEqual({ skill: "React", level: "not_assessed", rationale: "" });
-  });
-
-  it("ignores skills that aren't part of the Project", async () => {
-    const extra = {
-      evaluateSubmission: async () => ({
-        evidence: [{ skill: "Kubernetes", level: "strong", rationale: "?" }],
-        followUpQuestions: [],
-      }),
-    } as unknown as AIService;
-    const { service, writes } = setup({ ai: extra });
-    await service.submit(maria, goodInput);
-    expect(writes[0].evidence.map((e) => e.skill)).toEqual(["React", "Debugging", "Testing"]);
-  });
-
-  it("keeps at most 5 follow-up questions", async () => {
-    const chatty = {
-      evaluateSubmission: async () => ({
-        evidence: [{ skill: "React", level: "strong", rationale: "ok" }],
-        followUpQuestions: ["1", "2", "3", "4", "5", "6", "7"],
-      }),
-    } as unknown as AIService;
-    const { service, writes } = setup({ ai: chatty });
-    await service.submit(maria, goodInput);
-    expect(writes[0].followUpQuestions).toEqual(["1", "2", "3", "4", "5"]);
   });
 });
 

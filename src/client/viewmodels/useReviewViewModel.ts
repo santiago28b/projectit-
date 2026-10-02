@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { reviewService } from "@/client/services/reviewService";
+import { usePollWhile } from "@/client/viewmodels/usePollWhile";
 import {
   getSampleReview,
   saveSampleReview,
 } from "@/client/services/reviewSample";
-import type { EvidenceLevel, Evaluation } from "@/shared/models/domain";
+import { isAssessing, type EvidenceLevel, type Evaluation } from "@/shared/models/domain";
 import type { ReviewScreenData } from "@/shared/models/review";
 
 export function useReviewViewModel(submissionId: string) {
@@ -39,6 +40,17 @@ export function useReviewViewModel(submissionId: string) {
       });
     return () => controller.abort();
   }, [submissionId, isSample, reload]);
+
+  // While the AI Assessment runs in the background, re-check every few seconds.
+  const assessing = !isSample && isAssessing(data?.submission.assessmentStatus);
+  const assessmentTookTooLong = usePollWhile(assessing, () => {
+    reviewService
+      .getReviewScreen(submissionId)
+      .then(setData)
+      .catch(() => {
+        // Keep the current screen; the next tick tries again.
+      });
+  });
 
   function commit(next: ReviewScreenData) {
     if (isSample) saveSampleReview(next);
@@ -74,6 +86,18 @@ export function useReviewViewModel(submissionId: string) {
       setError("");
       setReload((value) => value + 1);
     },
+    assessing,
+    assessmentTookTooLong,
+    retryAssessment: () =>
+      perform(async () => {
+        if (!data || isSample) return;
+        await reviewService.retryAssessment(submissionId);
+        setData({
+          ...data,
+          submission: { ...data.submission, assessmentStatus: "pending", assessmentError: null },
+        });
+        setNotice("AI Assessment restarted. Evidence will update when it finishes.");
+      }),
     override: (skill: string, level: EvidenceLevel, rationale: string) =>
       perform(async () => {
         if (!data) return;

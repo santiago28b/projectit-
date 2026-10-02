@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { jsonError } from "@/server/controllers/http";
 import { noCandidate } from "@/server/controllers/projectsController";
+import { runInBackground } from "@/server/lib/background";
 import { getCurrentCandidate } from "@/server/lib/currentUser";
+import { assessmentService } from "@/server/services/assessment";
 import { SubmissionError, submissionsService } from "@/server/services/submissions";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -37,6 +39,8 @@ export const submissionsController = {
         fileUrls,
         videoUrl: optionalString(body.videoUrl) ?? "",
       });
+      // Transcribe, read the repo and assess after the response is sent.
+      runInBackground(() => assessmentService.run(submission.id));
       return NextResponse.json({ submission: { id: submission.id } }, { status: 201 });
     } catch (err) {
       if (err instanceof SyntaxError)

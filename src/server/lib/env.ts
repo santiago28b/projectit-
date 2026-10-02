@@ -14,8 +14,16 @@ export const env = {
     }
     return value;
   },
+  /** Speech-to-text for Walkthrough Transcripts. Without it, Communication isn't assessed. */
   get openaiApiKey() {
-    return process.env.OPENAI_API_KEY ?? null;
+    return process.env.OPENAI_API_KEY || null;
+  },
+  get openaiTranscribeModel() {
+    return process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-transcribe";
+  },
+  /** Optional: raises GitHub's rate limit when the Assessment reads repositories. */
+  get githubToken() {
+    return process.env.GITHUB_TOKEN || null;
   },
   /** Live Claude for AI Evidence and match reasons; the mock runs when unset. */
   get anthropicApiKey() {

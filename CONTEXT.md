@@ -46,15 +46,24 @@ _Avoid_: Job board
 A Candidate's finished work on a Project, which always includes a Walkthrough. A Candidate gets one Submission per Project.
 
 **Walkthrough**:
-A short (about 2–5 minute) required video where the Candidate explains their approach, decisions, and trade-offs, to prove they understand their own work.
+A required video, at most 2 minutes, where the Candidate explains their approach, decisions, and trade-offs, to prove they understand their own work.
 _Avoid_: Demo video, explanation video
 
+**Transcript**:
+The text of what the Candidate says in their Walkthrough, kept with the Submission so reviewers and the AI can read it. Judged on what is said, never on accent, fluency, or delivery.
+_Avoid_: Captions, subtitles
+
 **Evidence**:
-How strongly a Candidate has shown a skill (strong, partial, not shown, not assessed), labeled AI-assessed or Company-reviewed. A Company-reviewed level overrides the AI's. A Candidate's Evidence for a skill is their strongest level across all Submissions.
+How strongly a Candidate has shown a skill (strong, partial, not shown, not assessed), labeled AI-assessed or Company-reviewed. A Company-reviewed level overrides the AI's. A Candidate's Evidence for a skill is their strongest level across all Submissions. Every Submission also gets Communication Evidence from its Walkthrough.
 _Avoid_: Score, match percentage
+
+**Assessment**:
+The AI's background pass over a Submission (its code, written explanation, and Transcript) that produces AI-assessed Evidence and follow-up questions. If it fails, it produces no Evidence and can be retried.
+_Avoid_: AI evaluation, AI score
 
 **Evaluation**:
 A human reviewer's judgment of a Submission against the Project's Rubric, which may override the Evidence.
+_Avoid_: Assessment (that's the AI's pass)
 
 **Rubric**:
 The categories a Project's Submissions are judged on.

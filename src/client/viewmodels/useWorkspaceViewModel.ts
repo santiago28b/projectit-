@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { readVideoDuration } from "@/client/lib/videoDuration";
 import { projectsService } from "@/client/services/projectsService";
 import { submissionsService } from "@/client/services/submissionsService";
 import { useLoaded } from "@/client/viewmodels/useLoaded";
+import { checkWalkthroughDuration } from "@/shared/models/walkthrough";
 
 interface Draft {
   writtenResponse: string;
@@ -67,6 +69,16 @@ export function useWorkspaceViewModel(projectId: string) {
 
   async function uploadWalkthrough(file: File) {
     setError("");
+    // Check the length before spending time on the upload. If the browser can't
+    // tell (some WebM files report no length), the server checks instead.
+    const seconds = await readVideoDuration(file).catch(() => Number.NaN);
+    if (Number.isFinite(seconds)) {
+      const check = checkWalkthroughDuration(seconds);
+      if (!check.ok) {
+        setError(check.message);
+        return;
+      }
+    }
     setProgress(0);
     try {
       const url = await submissionsService.upload(file, "walkthrough", setProgress);

@@ -41,6 +41,7 @@ export const projectsDao = (
 
 // Submissions are Postgres-only (local DB or DATABASE_URL to Supabase).
 export { pgSubmissionsDao as submissionsDao } from "./pg/submissions";
+export { pgAssessmentDao as assessmentDao } from "./pg/assessment";
 
 export const evidenceDao = {
   async listByCandidate(_candidateId: string) {

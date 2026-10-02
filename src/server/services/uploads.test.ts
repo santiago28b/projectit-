@@ -10,7 +10,17 @@ const root = mkdtempSync(path.join(tmpdir(), "projectit-uploads-"));
 vi.spyOn(process, "cwd").mockReturnValue(root);
 vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://test.local");
 
-const { LIMITS, readUpload, saveUpload, UploadError, s3WalkthroughsEnabled, presignWalkthrough } =
+const {
+  LIMITS,
+  readUpload,
+  saveUpload,
+  UploadError,
+  s3WalkthroughsEnabled,
+  presignWalkthrough,
+  s3WalkthroughKey,
+  openWalkthroughFile,
+  checkStoredWalkthroughLength,
+} =
   await import("./uploads");
 
 const MB = 1024 * 1024;
@@ -113,6 +123,39 @@ describe("reading uploads", () => {
   });
 });
 
+describe("Walkthrough length", () => {
+  const files = () => readdirSync(path.join(root, "uploads"));
+
+  it("keeps a Walkthrough of 2 minutes or less", async () => {
+    const url = await saveUpload(video(), "walkthrough", async () => 118);
+    expect(files()).toContain(nameOf(url));
+  });
+
+  it("rejects and deletes a Walkthrough over 2:10", async () => {
+    const before = files().length;
+    await expect(saveUpload(video(), "walkthrough", async () => 185)).rejects.toThrow(
+      "Your Walkthrough is 3:05 long. Keep it to 2 minutes or less.",
+    );
+    expect(files()).toHaveLength(before);
+  });
+
+  it("keeps the upload when the length can't be read (the browser already checked)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unreadable = saveUpload(video(), "walkthrough", async () => null);
+    await expect(unreadable).resolves.toMatch(/\.mp4$/);
+    const broken = saveUpload(video(), "walkthrough", async () => {
+      throw new Error("ffmpeg not found");
+    });
+    await expect(broken).resolves.toMatch(/\.mp4$/);
+  });
+
+  it("doesn't check the length of other files", async () => {
+    const probe = vi.fn(async () => 999);
+    await saveUpload(new File(["%PDF"], "a.pdf", { type: "application/pdf" }), "file", probe);
+    expect(probe).not.toHaveBeenCalled();
+  });
+});
+
 describe("S3 Walkthroughs", () => {
   it("reports S3 as off when the bucket env is unset", () => {
     vi.stubEnv("S3_WALKTHROUGH_BUCKET", "");
@@ -131,5 +174,68 @@ describe("S3 Walkthroughs", () => {
     await expect(
       presignWalkthrough({ contentType: "video/mp4", size: LIMITS.walkthrough + 1 }),
     ).rejects.toThrow(/200MB/);
+  });
+});
+
+describe("S3 Walkthroughs on the server (transcription + length check)", () => {
+  const KEY = "walkthroughs/0b7e1c3a-1111-2222-3333-444455556666.mp4";
+  const URL_ = `https://project-it-walkthroughs.s3.amazonaws.com/${KEY}`;
+  const s3Fetch = (status = 200, body = "video-bytes") =>
+    vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => {
+      void _url;
+      void _init;
+      return new Response(body, { status });
+    });
+
+  it("recognizes only our own bucket's Walkthrough URLs", () => {
+    vi.stubEnv("S3_WALKTHROUGH_BUCKET", "project-it-walkthroughs");
+    vi.stubEnv("AWS_REGION", "us-east-1");
+    expect(s3WalkthroughKey(URL_)).toBe(KEY);
+    expect(s3WalkthroughKey("https://evil.s3.amazonaws.com/" + KEY)).toBeNull();
+    expect(s3WalkthroughKey(`https://project-it-walkthroughs.s3.amazonaws.com/other/x.mp4`)).toBeNull();
+    vi.stubEnv("S3_WALKTHROUGH_BUCKET", "");
+    expect(s3WalkthroughKey(URL_)).toBeNull();
+  });
+
+  it("downloads our S3 Walkthrough to a temporary file and deletes it on cleanup", async () => {
+    vi.stubEnv("S3_WALKTHROUGH_BUCKET", "project-it-walkthroughs");
+    vi.stubEnv("AWS_REGION", "us-east-1");
+    const fetchMock = s3Fetch();
+    const file = await openWalkthroughFile(URL_, fetchMock as unknown as typeof fetch);
+    expect(fetchMock.mock.calls[0][0]).toBe(URL_);
+    expect(file!.path).toMatch(/walkthrough-.*\.mp4$/);
+    const { readFileSync, existsSync } = await import("node:fs");
+    expect(readFileSync(file!.path, "utf8")).toBe("video-bytes");
+    await file!.cleanup();
+    expect(existsSync(file!.path)).toBe(false);
+  });
+
+  it("never fetches outside links", async () => {
+    const fetchMock = s3Fetch();
+    expect(await openWalkthroughFile("https://www.loom.com/share/abc", fetchMock as unknown as typeof fetch)).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an S3 Walkthrough over 2:10 at submit", async () => {
+    vi.stubEnv("S3_WALKTHROUGH_BUCKET", "project-it-walkthroughs");
+    vi.stubEnv("AWS_REGION", "us-east-1");
+    const result = await checkStoredWalkthroughLength(URL_, async () => 185, s3Fetch() as unknown as typeof fetch);
+    expect(result).toEqual({ ok: false, message: "Your Walkthrough is 3:05 long. Keep it to 2 minutes or less." });
+  });
+
+  it("allows it when the length is fine, unreadable, or the download fails", async () => {
+    vi.stubEnv("S3_WALKTHROUGH_BUCKET", "project-it-walkthroughs");
+    vi.stubEnv("AWS_REGION", "us-east-1");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ok = s3Fetch() as unknown as typeof fetch;
+    expect(await checkStoredWalkthroughLength(URL_, async () => 110, ok)).toEqual({ ok: true });
+    expect(await checkStoredWalkthroughLength(URL_, async () => null, ok)).toEqual({ ok: true });
+    expect(await checkStoredWalkthroughLength(URL_, async () => 110, s3Fetch(403) as unknown as typeof fetch)).toEqual({ ok: true });
+  });
+
+  it("skips the check for local uploads and outside links", async () => {
+    const probe = vi.fn(async () => 999);
+    expect(await checkStoredWalkthroughLength("https://www.youtube.com/watch?v=abcdefghijk", probe)).toEqual({ ok: true });
+    expect(probe).not.toHaveBeenCalled();
   });
 });

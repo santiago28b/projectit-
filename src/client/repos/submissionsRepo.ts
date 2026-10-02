@@ -25,6 +25,7 @@ export const submissionsRepo = {
 
   getMine(submissionId: string, signal?: AbortSignal) {
     return apiFetch<MySubmissionView>(`/api/submissions/${submissionId}`, {
+      cache: "no-store",
       signal,
     });
   },
