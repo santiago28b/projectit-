@@ -11,4 +11,4 @@
 - [ ] Job page lists matched Projects and Candidates, ranked, with reasons
 - [ ] Candidate Evidence summary shows skill, level, source label, and Project name
 - [ ] A Submission link appears only when the Company owns or Sponsors that Project
-- [ ] Tests: matching a Job to Candidates ranks by Evidence; a Company can't access Submissions to Projects it doesn't own or Sponsor
+- [ ] Tests (pure functions): matching a Job to Candidates ranks by Evidence; the access rule rejects Submissions to Projects the Company doesn't own or Sponsor (ownership and sponsorship both come from `company_projects`)
