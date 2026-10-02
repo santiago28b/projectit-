@@ -1,16 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { jsonError, requireQueryParam } from "@/server/controllers/http";
+import { jsonError } from "@/server/controllers/http";
+import { getCurrentCandidate } from "@/server/lib/currentUser";
 import { projectsService } from "@/server/services/projects";
 
-export const projectsController = {
-  async listMarketplace(request: NextRequest) {
-    try {
-      const url = new URL(request.url);
-      const candidateId = requireQueryParam(url, "candidateId");
-      if (candidateId instanceof NextResponse) return candidateId;
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-      const projects = await projectsService.listMarketplace(candidateId);
+export function noCandidate() {
+  return NextResponse.json(
+    { error: "Switch to a Candidate account to see Projects" },
+    { status: 401 },
+  );
+}
+
+export const projectsController = {
+  async listMarketplace(_request: NextRequest) {
+    void _request;
+    try {
+      const candidate = await getCurrentCandidate();
+      if (!candidate) return noCandidate();
+      const projects = await projectsService.listMarketplace(candidate);
       return NextResponse.json({ projects });
     } catch (err) {
       return jsonError(err);
@@ -18,8 +27,13 @@ export const projectsController = {
   },
 
   async getById(_request: NextRequest, projectId: string) {
+    void _request;
     try {
-      const project = await projectsService.getById(projectId);
+      const candidate = await getCurrentCandidate();
+      if (!candidate) return noCandidate();
+      const project = uuid.test(projectId)
+        ? await projectsService.getDetail(projectId, candidate)
+        : null;
       if (!project) {
         return NextResponse.json({ error: "Project not found" }, { status: 404 });
       }
