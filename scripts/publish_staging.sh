@@ -106,6 +106,22 @@ if [[ -n "\${DATABASE_URL:-}" ]] && [[ -f /tmp/project-it-ensure-schema.sql ]]; 
   rm -f /tmp/project-it-ensure-schema.sql
 fi
 
+# Standalone is built on macOS; ffmpeg-static isn't usable on Linux EC2.
+# Prefer FFMPEG_PATH from .env, then ~/bin/ffmpeg (survives deploys), then PATH.
+if [[ -z "\${FFMPEG_PATH:-}" ]]; then
+  if [[ -x "\${HOME}/bin/ffmpeg" ]]; then
+    export FFMPEG_PATH="\${HOME}/bin/ffmpeg"
+  elif command -v ffmpeg >/dev/null 2>&1; then
+    export FFMPEG_PATH="\$(command -v ffmpeg)"
+  fi
+fi
+if [[ -n "\${FFMPEG_PATH:-}" ]]; then
+  echo "==> FFMPEG_PATH=\${FFMPEG_PATH}"
+else
+  echo "WARNING: No ffmpeg on this host — Walkthrough transcripts will fail."
+  echo "         Install once: curl johnvansickle ffmpeg static → ~/bin/ffmpeg"
+fi
+
 export PORT=${APP_PORT}
 export NODE_ENV=production
 export NEXT_PUBLIC_APP_URL="${SITE_URL}"
