@@ -11,6 +11,7 @@ export function CompanyPortalView() {
         Jobs, Projects, Submissions, and Shortlists will live here.
       </p>
       <nav className="mt-8 flex flex-wrap gap-4 text-sm font-medium text-indigo-600">
+        <Link href="/company/review">Review Submissions</Link>
         <Link href="/">Home</Link>
       </nav>
     </main>
