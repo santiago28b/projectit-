@@ -1,6 +1,7 @@
 import { submissionsDao } from "@/server/database/dao";
 import type { SubmissionsDao } from "@/server/database/dao/pg/submissions";
 import { projectsService, type ProjectsService } from "@/server/services/projects";
+import { checkStoredWalkthroughLength } from "@/server/services/uploads";
 import type { Candidate, Submission } from "@/server/models/domain";
 import type {
   MySubmissionSummary,
@@ -47,6 +48,8 @@ function validate(input: SubmitProjectInput) {
 export function createSubmissionsService(deps: {
   dao: SubmissionsDao;
   projects: Pick<ProjectsService, "canStart">;
+  /** Server-side 2-minute check for Walkthroughs that skipped our upload route (S3). */
+  checkWalkthroughLength?: (videoUrl: string) => Promise<{ ok: true } | { ok: false; message: string }>;
   now?: () => Date;
 }) {
   const now = deps.now ?? (() => new Date());
@@ -68,6 +71,11 @@ export function createSubmissionsService(deps: {
         throw new SubmissionError("The deadline for this Project has passed", 403);
       if (await deps.dao.findId(project.id, candidate.id))
         throw new SubmissionError("You've already submitted to this Project", 409);
+
+      if (deps.checkWalkthroughLength) {
+        const length = await deps.checkWalkthroughLength(clean.videoUrl);
+        if (!length.ok) throw new SubmissionError(length.message, 400);
+      }
 
       try {
         return await deps.dao.create({
@@ -111,4 +119,5 @@ export type SubmissionsService = ReturnType<typeof createSubmissionsService>;
 export const submissionsService = createSubmissionsService({
   dao: submissionsDao,
   projects: projectsService,
+  checkWalkthroughLength: (url) => checkStoredWalkthroughLength(url),
 });

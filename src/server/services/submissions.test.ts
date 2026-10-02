@@ -48,6 +48,7 @@ function setup(
     eligible?: boolean;
     project?: Project;
     findMine?: SubmissionsDao["findMine"];
+    lengthCheck?: { ok: true } | { ok: false; message: string };
   } = {},
 ) {
   const writes: NewSubmission[] = [];
@@ -65,6 +66,7 @@ function setup(
   const service = createSubmissionsService({
     dao,
     projects: { canStart: async () => options.eligible ?? true },
+    checkWalkthroughLength: async () => options.lengthCheck ?? { ok: true },
     now: () => new Date("2026-10-02T12:00:00Z"),
   });
   return { service, writes };
@@ -118,6 +120,15 @@ describe("submitting a Project", () => {
       fileUrls: [],
       videoUrl: goodInput.videoUrl,
     });
+  });
+
+  it("rejects a Walkthrough over 2 minutes that skipped the upload check (S3) and writes nothing", async () => {
+    const message = "Your Walkthrough is 3:05 long. Keep it to 2 minutes or less.";
+    const { service, writes } = setup({ lengthCheck: { ok: false, message } });
+    const err = await rejection(service.submit(maria, goodInput));
+    expect(err.status).toBe(400);
+    expect(err.message).toBe(message);
+    expect(writes).toHaveLength(0);
   });
 
   it("rejects a Project the Candidate isn't eligible for", async () => {

@@ -21,17 +21,31 @@ describe("uploadNameFromUrl", () => {
 
 const UPLOAD = "http://localhost:3000/api/uploads/0b7e1c3a-1111-2222-3333-444455556666.mp4";
 
-function setup(opts: { apiKey?: string | null; reply?: () => Promise<Response>; audio?: () => Promise<Buffer> } = {}) {
+function setup(
+  opts: {
+    apiKey?: string | null;
+    reply?: () => Promise<Response>;
+    audio?: () => Promise<Buffer>;
+    openVideo?: (url: string) => Promise<{ path: string; cleanup: () => Promise<void> } | null>;
+  } = {},
+) {
   const fetchMock = vi.fn(opts.reply ?? (async () => Response.json({ text: "  I fixed the race with AbortController.  " })));
   const extractAudio = vi.fn(opts.audio ?? (async () => Buffer.from("mp3-bytes")));
+  const cleanup = vi.fn(async () => {});
+  const openVideo =
+    opts.openVideo ??
+    (async (url: string) => {
+      const name = uploadNameFromUrl(url);
+      return name ? { path: `/uploads/${name}`, cleanup } : null;
+    });
   const transcriber = createTranscriber({
     apiKey: opts.apiKey === undefined ? "sk-test" : opts.apiKey,
     model: "gpt-4o-transcribe",
     fetch: fetchMock as unknown as typeof fetch,
     extractAudio,
-    uploadPath: (name) => `/uploads/${name}`,
+    openVideo,
   });
-  return { transcriber, fetchMock, extractAudio };
+  return { transcriber, fetchMock, extractAudio, cleanup };
 }
 
 describe("transcriber.transcribe", () => {
@@ -48,6 +62,43 @@ describe("transcriber.transcribe", () => {
     const form = init.body as FormData;
     expect(form.get("model")).toBe("gpt-4o-transcribe");
     expect((form.get("file") as File).name).toBe("walkthrough.mp3");
+  });
+
+  it("cleans up the video file once the audio is out (e.g. a temporary S3 download)", async () => {
+    const { transcriber, cleanup } = setup();
+    await transcriber.transcribe(UPLOAD);
+    expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it("cleans up even when audio extraction fails", async () => {
+    const { transcriber, cleanup } = setup({
+      audio: async () => {
+        throw new Error("ffmpeg exited 1");
+      },
+    });
+    await transcriber.transcribe(UPLOAD);
+    expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it("transcribes an S3 Walkthrough via the downloaded file", async () => {
+    const s3 = "https://bucket.s3.amazonaws.com/walkthroughs/0b7e1c3a-1111-2222-3333-444455556666.mp4";
+    const { transcriber, extractAudio } = setup({
+      openVideo: async (url) => (url === s3 ? { path: "/tmp/walkthrough-x.mp4", cleanup: async () => {} } : null),
+    });
+    expect(await transcriber.transcribe(s3)).toEqual({ ok: true, transcript: "I fixed the race with AbortController." });
+    expect(extractAudio).toHaveBeenCalledWith("/tmp/walkthrough-x.mp4");
+  });
+
+  it("says so when the S3 video can't be downloaded", async () => {
+    const { transcriber } = setup({
+      openVideo: async () => {
+        throw new Error("S3 answered 403");
+      },
+    });
+    expect(await transcriber.transcribe(UPLOAD)).toEqual({
+      ok: false,
+      reason: "The Walkthrough video couldn't be downloaded.",
+    });
   });
 
   it("can't transcribe a Walkthrough that's an external link", async () => {

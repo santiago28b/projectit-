@@ -79,7 +79,8 @@ export async function extractAudioMp3(filePath: string): Promise<Buffer> {
 export function createTranscriber(deps: {
   apiKey: string | null;
   model: string;
-  uploadPath: (name: string) => string;
+  /** A local file for one of our stored Walkthroughs (disk or S3), or null for outside links. */
+  openVideo: (videoUrl: string) => Promise<{ path: string; cleanup: () => Promise<void> } | null>;
   fetch?: typeof fetch;
   extractAudio?: (filePath: string) => Promise<Buffer>;
 }) {
@@ -88,17 +89,26 @@ export function createTranscriber(deps: {
 
   return {
     async transcribe(videoUrl: string): Promise<TranscriptResult> {
-      const name = uploadNameFromUrl(videoUrl);
-      if (!name)
-        return { ok: false, reason: "The Walkthrough is an external link, so it couldn't be transcribed." };
       if (!deps.apiKey) return { ok: false, reason: "Transcription isn't set up on this server." };
+
+      let video: Awaited<ReturnType<typeof deps.openVideo>>;
+      try {
+        video = await deps.openVideo(videoUrl);
+      } catch (err) {
+        console.warn("[transcription] video download failed:", err instanceof Error ? err.message : err);
+        return { ok: false, reason: "The Walkthrough video couldn't be downloaded." };
+      }
+      if (!video)
+        return { ok: false, reason: "The Walkthrough is an external link, so it couldn't be transcribed." };
 
       let audio: Buffer;
       try {
-        audio = await extractAudio(deps.uploadPath(name));
+        audio = await extractAudio(video.path);
       } catch (err) {
         console.warn("[transcription] audio extraction failed:", err instanceof Error ? err.message : err);
         return { ok: false, reason: "The Walkthrough's audio couldn't be read." };
+      } finally {
+        await video.cleanup();
       }
 
       const form = new FormData();

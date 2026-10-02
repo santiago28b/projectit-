@@ -9,7 +9,7 @@ import {
 } from "@/server/services/ai";
 import { createRepoReader, type RepoReader, type RepoSnapshot } from "@/server/services/repoReader";
 import { createTranscriber, type Transcriber } from "@/server/services/transcription";
-import { uploadPath } from "@/server/services/uploads";
+import { openWalkthroughFile } from "@/server/services/uploads";
 import { evidenceLevels } from "@/shared/models/review";
 
 /** A rule broke; `status` is the HTTP status the controller should send. */
@@ -159,7 +159,7 @@ export const assessmentService = createAssessmentService({
   transcriber: createTranscriber({
     apiKey: env.openaiApiKey,
     model: env.openaiTranscribeModel,
-    uploadPath,
+    openVideo: (url) => openWalkthroughFile(url),
   }),
   repoReader: createRepoReader({ token: env.githubToken }),
 });
