@@ -17,4 +17,11 @@ export const env = {
   get openaiApiKey() {
     return process.env.OPENAI_API_KEY ?? null;
   },
+  get anthropicApiKey() {
+    return process.env.ANTHROPIC_API_KEY ?? null;
+  },
+  /** Override the Claude model without a code change. */
+  get anthropicModel() {
+    return process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5-5";
+  },
 };
