@@ -49,7 +49,7 @@ app/api/*/route.ts → controllers → services → database/dao → Supabase
 
 1. **Install** — `npm install`
 2. **Env** — `cp .env.example .env.local` and fill Supabase URL + publishable key (+ service role for admin/seed)
-3. **Schema** — `npx supabase link --project-ref <ref> && npm run db:push`
+3. **Schema + seed** — `npx supabase login && npx supabase link --project-ref <ref>`, then (Person A only) `npm run db:reseed`. Seeded IDs are in `src/shared/constants/seedIds.ts`
 4. **Dev** — `npm run dev`
 
 ## Layout
@@ -91,5 +91,6 @@ supabase/migrations/
 | `npm run dev` | Next.js dev server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
-| `npm run db:push` | Push migrations to linked remote Supabase |
+| `npm run db:push` | Push migrations to linked remote Supabase (**Person A only**) |
+| `npm run db:reseed` | **Person A only.** Wipes the shared DB, re-runs every migration, and loads `supabase/seed.sql` |
 | `npm run db:start` | Optional local Supabase (Docker) |

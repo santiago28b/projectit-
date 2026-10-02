@@ -10,7 +10,7 @@
     "db:start": "npx supabase start",
     "db:stop": "npx supabase stop",
     "db:status": "npx supabase status",
-    "db:reset": "npx supabase db reset",
+    "db:reseed": "npx supabase db reset --linked",
     "db:push": "npx supabase db push"
   },
   "dependencies": {
