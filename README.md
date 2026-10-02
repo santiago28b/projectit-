@@ -8,16 +8,28 @@ Domain language: [`CONTEXT.md`](CONTEXT.md). Decisions: [`docs/adr/`](docs/adr/)
 
 - **Next.js** (App Router) + TypeScript + Tailwind
 - **Postgres** via `DATABASE_URL` + `pg` (Homebrew locally; host Postgres on staging)
+- Optional **Supabase JS** admin client when `DATABASE_BACKEND=supabase` (shared team cloud DB)
 - Architecture mirrors **Prometheus Portal**: client MVVM over HTTP + server routes/controllers/services/DAO
 
 ### Local vs staging DB
 
-**No Docker. No Supabase.** Same SQL migrations everywhere; only `DATABASE_URL` changes.
+Same SQL migrations everywhere; only `DATABASE_URL` (and optional Supabase env) changes.
 
 | Environment | What runs where |
 |---|---|
 | **Local** | `npm run dev` → Homebrew Postgres (`DATABASE_URL` in `.env.local`) |
 | **Staging** | EC2 + PM2 at [project-it.samirrodriguez.click](https://project-it.samirrodriguez.click) → Postgres on that host (`DATABASE_URL` in remote `.env`) |
+
+### Database backend
+
+DAOs pick a backend from env (default **`pg`**):
+
+| Mode | When to use | Required env |
+|---|---|---|
+| `pg` (default) | Local Homebrew, EC2 Postgres, or Supabase **direct / pooler** connection string | `DATABASE_URL` |
+| `supabase` | Joey-style `.from()` + service-role bypass of RLS | `DATABASE_BACKEND=supabase`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
+
+Teammates on a shared Supabase project can often stay on **`pg`** and set `DATABASE_URL` to the Supabase connection string — no JS client required.
 
 ### Deploy staging (EC2)
 
@@ -46,7 +58,7 @@ views → viewmodels → services → repos (HTTP) → /api/*
 **Server (not MVVM)** — App Router handlers are the route layer:
 
 ```
-app/api/*/route.ts → controllers → services → database/dao → Postgres (pg)
+app/api/*/route.ts → controllers → services → database/dao → Postgres (pg) or Supabase admin
 ```
 
 | Folder | Role |
@@ -58,14 +70,14 @@ app/api/*/route.ts → controllers → services → database/dao → Postgres (p
 | **`src/client/repos/`** | HTTP clients to `/api/*` |
 | **`src/server/controllers/`** | Parse request, call services, JSON response |
 | **`src/server/services/`** | Business rules + AIService |
-| **`src/server/database/dao/`** | Postgres data access via `db` / `query` |
+| **`src/server/database/dao/`** | Data access (`pg/` and `supabase/` implementations) |
 | **`src/shared/`** | Domain types, public env |
 
 ## Setup
 
 1. **Install** — `npm install`
-2. **Env** — `cp .env.example .env.local` and set `DATABASE_URL` (Homebrew user + `projectit` DB)
-3. **DB** — `npm run db:create` then `npm run db:reset`
+2. **Env** — `cp .env.example .env.local` and set `DATABASE_URL` (Homebrew user + `projectit` DB). For optional Supabase JS mode, set `DATABASE_BACKEND=supabase` and the Supabase vars.
+3. **DB** — `npm run db:create` then `npm run db:reset` (Person A after migration changes). Seeded demo accounts and fixed IDs live in `src/shared/constants/seedIds.ts`.
 4. **Dev** — `npm run dev`
 
 ## Layout
