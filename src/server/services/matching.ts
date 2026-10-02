@@ -3,13 +3,14 @@ import "server-only";
 import { matchingRepository as repo } from "@/server/repositories/matching";
 import {
   buildEvidenceProfile,
+  canViewSubmission,
   projectsForJob as rankProjectsForJob,
   rankCandidatesForJob,
   rankProjectsForCandidate,
   type EvidenceProfileEntry,
   type MatchResult,
 } from "@/server/services/rules";
-import type { Candidate, Evidence, Project } from "@/server/models/domain";
+import type { Candidate, Evidence, Job, Project } from "@/server/models/domain";
 
 export type { MatchResult } from "@/server/services/rules";
 
@@ -21,6 +22,18 @@ export interface JobCandidateMatch {
   profile: EvidenceProfileEntry[];
 }
 
+/** Everything the Company's Job page needs, in one call. */
+export interface JobOverview {
+  job: Job;
+  candidates: MatchResult<JobCandidateMatch>[];
+  projects: MatchResult<Project>[];
+  /**
+   * Submissions this Company may open (it owns or Sponsors the Project).
+   * Keyed by candidateId. Submissions to other Companies' Projects never appear.
+   */
+  reviewableSubmissions: Record<string, { submissionId: string; projectTitle: string }[]>;
+}
+
 /**
  * Recommended Projects for a Candidate, Candidates who fit a Job,
  * and Projects that test a Job. Every result includes reasons — never a %.
@@ -30,6 +43,7 @@ export interface MatchingService {
   recommendProjectsForCandidate(candidateId: string): Promise<MatchResult<Project>[]>;
   candidatesForJob(jobId: string): Promise<MatchResult<JobCandidateMatch>[]>;
   projectsForJob(jobId: string): Promise<MatchResult<Project>[]>;
+  jobOverview(jobId: string): Promise<JobOverview | null>;
 }
 
 /** Evidence profiles for many Candidates with two queries total. */
@@ -103,5 +117,32 @@ export const matchingService: MatchingService = {
     if (!job) return [];
     const projects = await repo.listOpenProjects();
     return rankProjectsForJob(job, projects);
+  },
+
+  async jobOverview(jobId) {
+    const job = await repo.getJob(jobId);
+    if (!job) return null;
+
+    const [candidates, projects, links] = await Promise.all([
+      matchingService.candidatesForJob(jobId),
+      matchingService.projectsForJob(jobId),
+      repo.listCompanyProjectLinks(job.companyId),
+    ]);
+
+    const reviewableSubmissions: JobOverview["reviewableSubmissions"] = {};
+    for (const { item } of candidates) {
+      const seen = new Set<string>();
+      for (const entry of item.profile) {
+        if (!entry.submissionId || seen.has(entry.submissionId)) continue;
+        if (!canViewSubmission(job.companyId, entry.projectId, links)) continue;
+        seen.add(entry.submissionId);
+        (reviewableSubmissions[item.candidate.id] ??= []).push({
+          submissionId: entry.submissionId,
+          projectTitle: entry.projectTitle,
+        });
+      }
+    }
+
+    return { job, candidates, projects, reviewableSubmissions };
   },
 };

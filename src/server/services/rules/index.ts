@@ -18,6 +18,8 @@ export interface EvidenceProfileEntry {
   source: EvidenceSource;
   projectId: string;
   projectTitle: string;
+  /** The Submission this level came from (used to link to its review). */
+  submissionId?: string;
 }
 
 /** Ranked result. The score is only for sorting and is never returned. */
@@ -151,6 +153,7 @@ export function buildEvidenceProfile(
       source: ev.source,
       projectId: project?.id ?? "",
       projectTitle: project?.title ?? "Unknown Project",
+      submissionId: ev.submissionId,
     };
   });
 }
