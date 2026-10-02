@@ -32,15 +32,9 @@ export const companiesDao =
 export const candidatesDao =
   backend === "supabase" ? supabaseCandidatesDao : pgCandidatesDao;
 
-export const projectsDao = {
-  async listPublished() {
-    throw new Error("projectsDao.listPublished not implemented");
-  },
-  async findById(_id: string) {
-    void _id;
-    throw new Error("projectsDao.findById not implemented");
-  },
-};
+// Candidate-flow DAOs are Postgres-only: the team runs local Postgres, and
+// DATABASE_URL can also point at a Supabase connection string.
+export { pgProjectsDao as projectsDao } from "./pg/projects";
 
 export const submissionsDao = {
   async findByProjectAndCandidate(_projectId: string, _candidateId: string) {

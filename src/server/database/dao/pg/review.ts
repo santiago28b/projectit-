@@ -17,16 +17,7 @@ import type {
   ShortlistInput,
 } from "@/shared/models/review";
 
-function domainRow<T>(row: Record<string, unknown>): T {
-  return Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [
-      key.replace(/_([a-z])/g, (_match, letter: string) =>
-        letter.toUpperCase(),
-      ),
-      value instanceof Date ? value.toISOString() : value,
-    ]),
-  ) as T;
-}
+import { domainRow } from "../mappers";
 
 async function findById<T>(table: string, id: string): Promise<T> {
   const { rows } = await db.query<Record<string, unknown>>(

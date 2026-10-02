@@ -1,6 +1,11 @@
 import "server-only";
 
-import { Pool, type QueryResult, type QueryResultRow } from "pg";
+import {
+  Pool,
+  type PoolClient,
+  type QueryResult,
+  type QueryResultRow,
+} from "pg";
 
 import { env } from "@/server/lib/env";
 
@@ -29,5 +34,21 @@ export const db = {
     params?: unknown[],
   ): Promise<QueryResult<T>> {
     return getPool().query<T>(text, params);
+  },
+
+  /** Run `fn` in one transaction: all writes commit together or none do. */
+  async transaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await getPool().connect();
+    try {
+      await client.query("begin");
+      const result = await fn(client);
+      await client.query("commit");
+      return result;
+    } catch (err) {
+      await client.query("rollback");
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 };

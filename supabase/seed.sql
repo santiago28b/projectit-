@@ -101,6 +101,14 @@ insert into public.projects (
    array['React', 'Accessibility', 'Testing'],
    array['Repository URL', 'Walkthrough video'],
    now() + interval '10 days', 'published', 'platform'),
+  ('00000000-0000-0000-0000-000000000405', 'Lift-Line Wait Times Report',
+   'A group of Mountain West ski resorts wants to know why weekend lift lines are twice as long as last season, and what to change before peak season.',
+   'Query a season of lift-scan data, chart where and when lines build up, and write a short recommendation.',
+   E'1. Load the lift-scan export into SQL.\n2. Find the lifts and hours where waits grew the most.\n3. Chart the two findings that matter most.\n4. Write a half-page recommendation and walk through it in your Walkthrough.',
+   'platform', 'region', 'Mountain West', 60, 'Beginner',
+   array['SQL', 'Data Visualization', 'Written Communication'],
+   array['SQL file or notebook', 'Written explanation', 'Walkthrough video'],
+   now() + interval '12 days', 'published', 'platform'),
   ('00000000-0000-0000-0000-000000000411', 'Appointment Reminder API',
    'Clinics miss appointments because reminder texts go out at the wrong time across time zones.',
    'Build a small Node.js REST API that schedules appointment reminders correctly across time zones.',
@@ -137,11 +145,50 @@ insert into public.rubrics (project_id, criteria) values
     {"name": "Accessibility fixes", "description": "Labels, focus order, and errors work with a screen reader."},
     {"name": "Testing", "description": "Tests cover the fixed issues."}
   ]'),
+  ('00000000-0000-0000-0000-000000000405', '[
+    {"name": "Analysis", "description": "Queries find where and when waits grew, not just averages."},
+    {"name": "Charts", "description": "Charts make the two findings obvious."},
+    {"name": "Recommendation", "description": "Advice follows from the data and is easy to act on."}
+  ]'),
   ('00000000-0000-0000-0000-000000000411', '[
     {"name": "API design", "description": "Endpoints are clear and consistent."},
     {"name": "Time zones", "description": "Reminders fire at the right local time."},
     {"name": "Testing", "description": "Edge cases like DST changes are tested."}
   ]');
+
+-- Workspace starter files and resources (ticket 03). Links are placeholders for the demo.
+update public.projects set resources = '[
+  {"label": "Starter repo: delivery-tracker", "url": "https://github.com/project-it-demo/broken-delivery-tracker", "kind": "starter"},
+  {"label": "Mock deliveries API (OpenAPI spec)", "url": "https://github.com/project-it-demo/broken-delivery-tracker/blob/main/api/openapi.yaml", "kind": "starter"},
+  {"label": "React docs: Synchronizing with Effects", "url": "https://react.dev/learn/synchronizing-with-effects", "kind": "reference"},
+  {"label": "Vitest getting started", "url": "https://vitest.dev/guide/", "kind": "reference"}
+]' where id = '00000000-0000-0000-0000-000000000401';
+
+update public.projects set resources = '[
+  {"label": "sales_export.csv", "url": "https://github.com/project-it-demo/sales-dashboard/blob/main/data/sales_export.csv", "kind": "starter"},
+  {"label": "Region rename notes", "url": "https://github.com/project-it-demo/sales-dashboard/blob/main/docs/regions.md", "kind": "starter"},
+  {"label": "pandas: Duplicate labels", "url": "https://pandas.pydata.org/docs/user_guide/duplicates.html", "kind": "reference"}
+]' where id = '00000000-0000-0000-0000-000000000402';
+
+update public.projects set resources = '[
+  {"label": "Backlog and feedback notes", "url": "https://github.com/project-it-demo/feature-backlog/blob/main/backlog.md", "kind": "starter"},
+  {"label": "RICE prioritization overview", "url": "https://www.intercom.com/blog/rice-simple-prioritization-for-product-managers/", "kind": "reference"}
+]' where id = '00000000-0000-0000-0000-000000000403';
+
+update public.projects set resources = '[
+  {"label": "Starter repo: checkout-form", "url": "https://github.com/project-it-demo/accessible-checkout", "kind": "starter"},
+  {"label": "WAI-ARIA Authoring Practices", "url": "https://www.w3.org/WAI/ARIA/apg/", "kind": "reference"}
+]' where id = '00000000-0000-0000-0000-000000000404';
+
+update public.projects set resources = '[
+  {"label": "lift_scans.sql (one season)", "url": "https://github.com/project-it-demo/lift-lines/blob/main/data/lift_scans.sql", "kind": "starter"},
+  {"label": "PostgreSQL: Window functions", "url": "https://www.postgresql.org/docs/current/tutorial-window.html", "kind": "reference"}
+]' where id = '00000000-0000-0000-0000-000000000405';
+
+update public.projects set resources = '[
+  {"label": "Starter repo: reminder-api", "url": "https://github.com/project-it-demo/appointment-reminders", "kind": "starter"},
+  {"label": "MDN: Intl.DateTimeFormat time zones", "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat", "kind": "reference"}
+]' where id = '00000000-0000-0000-0000-000000000411';
 
 -- ---------------------------------------------------------------------------
 -- Jobs
