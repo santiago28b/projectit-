@@ -1,6 +1,6 @@
 /**
- * Data-access objects (DB layer). Implementations use createAdminClient()
- * (or the SSR client once Auth lands).
+ * Data-access objects (DB layer). Implementations use `db` / `query` from
+ * `@/server/lib/db` (Postgres via DATABASE_URL).
  *
  * Client-side HTTP access lives in src/client/repos — not here.
  */

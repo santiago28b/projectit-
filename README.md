@@ -7,18 +7,17 @@ Domain language: [`CONTEXT.md`](CONTEXT.md). Decisions: [`docs/adr/`](docs/adr/)
 ## Stack
 
 - **Next.js** (App Router) + TypeScript + Tailwind
-- **Postgres** via Supabase (cloud by default; Docker optional)
+- **Postgres** via `DATABASE_URL` + `pg` (Homebrew locally; host Postgres on staging)
 - Architecture mirrors **Prometheus Portal**: client MVVM over HTTP + server routes/controllers/services/DAO
 
-### Local vs staging / production DB
+### Local vs staging DB
 
-**Default: no Docker.** Next.js on your machine → remote Supabase Postgres (`.env.local`).
+**No Docker. No Supabase.** Same SQL migrations everywhere; only `DATABASE_URL` changes.
 
 | Environment | What runs where |
 |---|---|
-| **Local** | `npm run dev` → remote Supabase (`.env.local`) |
-| **Staging** | EC2 + PM2 at [project-it.samirrodriguez.click](https://project-it.samirrodriguez.click) → same Supabase |
-| **Prod** | Deployed Next.js → Supabase (host env vars) |
+| **Local** | `npm run dev` → Homebrew Postgres (`DATABASE_URL` in `.env.local`) |
+| **Staging** | EC2 + PM2 at [project-it.samirrodriguez.click](https://project-it.samirrodriguez.click) → Postgres on that host (`DATABASE_URL` in remote `.env`) |
 
 ### Deploy staging (EC2)
 
@@ -26,7 +25,7 @@ Same host/key pattern as Prometheus (`ec2-user` + `prometheus_key.pem`).
 
 ```bash
 # One-time on the server: DNS + nginx (scripts/nginx/) + certbot,
-# then create ~/project-it-staging/.env from scripts/env.staging.example
+# Postgres + DATABASE_URL in ~/project-it-staging/.env from scripts/env.staging.example
 
 npm run deploy:staging              # lint → optional commit → publish
 npm run deploy:staging -- --no-commit
@@ -47,7 +46,7 @@ views → viewmodels → services → repos (HTTP) → /api/*
 **Server (not MVVM)** — App Router handlers are the route layer:
 
 ```
-app/api/*/route.ts → controllers → services → database/dao → Supabase
+app/api/*/route.ts → controllers → services → database/dao → Postgres (pg)
 ```
 
 | Folder | Role |
@@ -59,14 +58,14 @@ app/api/*/route.ts → controllers → services → database/dao → Supabase
 | **`src/client/repos/`** | HTTP clients to `/api/*` |
 | **`src/server/controllers/`** | Parse request, call services, JSON response |
 | **`src/server/services/`** | Business rules + AIService |
-| **`src/server/database/dao/`** | Supabase data access |
-| **`src/shared/`** | Domain types, public env, browser/SSR Supabase helpers |
+| **`src/server/database/dao/`** | Postgres data access via `db` / `query` |
+| **`src/shared/`** | Domain types, public env |
 
 ## Setup
 
 1. **Install** — `npm install`
-2. **Env** — `cp .env.example .env.local` and fill Supabase URL + publishable key (+ service role for admin/seed)
-3. **Schema** — `npx supabase link --project-ref <ref> && npm run db:push`
+2. **Env** — `cp .env.example .env.local` and set `DATABASE_URL` (Homebrew user + `projectit` DB)
+3. **DB** — `npm run db:create` then `npm run db:reset`
 4. **Dev** — `npm run dev`
 
 ## Layout
@@ -85,9 +84,9 @@ src/
     controllers/
     services/
     database/dao/
-    lib/supabase/admin.ts
+    lib/db.ts             # pg Pool
   shared/
-supabase/migrations/
+supabase/migrations/      # SQL applied by npm run db:reset
 ```
 
 ## API stubs
@@ -108,8 +107,9 @@ supabase/migrations/
 | `npm run dev` | Next.js dev server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
-| `npm run db:push` | Push migrations to linked remote Supabase |
-| `npm run db:start` | Optional local Supabase (Docker) |
+| `npm run db:create` | Create the `projectit` database if missing |
+| `npm run db:reset` | Drop public schema, apply migrations + seed |
+| `npm run db:psql` | Open `psql` on `DATABASE_URL` |
 | `npm run deploy:staging` | Lint, optional commit/push, publish to EC2 staging |
 | `npm run publish:staging` | Build standalone + PM2 restart on EC2 |
 | `npm run ssh:ec2` | SSH into the staging EC2 host |

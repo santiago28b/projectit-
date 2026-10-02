@@ -1,13 +1,11 @@
-import { type NextRequest } from "next/server";
-
-import { updateSession } from "@/shared/supabase/middleware";
+import { type NextRequest, NextResponse } from "next/server";
 
 /**
- * Refreshes the Supabase auth session cookie on each request.
- * Role-switcher demo does not require login yet; this keeps Auth ready.
+ * Passthrough middleware. Demo uses a role-switcher cookie, not Supabase Auth.
  */
-export async function middleware(request: NextRequest) {
-  return updateSession(request);
+export async function middleware(_request: NextRequest) {
+  void _request;
+  return NextResponse.next();
 }
 
 export const config = {
