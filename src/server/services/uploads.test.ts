@@ -10,7 +10,8 @@ const root = mkdtempSync(path.join(tmpdir(), "projectit-uploads-"));
 vi.spyOn(process, "cwd").mockReturnValue(root);
 vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://test.local");
 
-const { LIMITS, readUpload, saveUpload, UploadError } = await import("./uploads");
+const { LIMITS, readUpload, saveUpload, UploadError, s3WalkthroughsEnabled, presignWalkthrough } =
+  await import("./uploads");
 
 const MB = 1024 * 1024;
 
@@ -142,5 +143,26 @@ describe("Walkthrough length", () => {
     const probe = vi.fn(async () => 999);
     await saveUpload(new File(["%PDF"], "a.pdf", { type: "application/pdf" }), "file", probe);
     expect(probe).not.toHaveBeenCalled();
+  });
+});
+
+describe("S3 Walkthroughs", () => {
+  it("reports S3 as off when the bucket env is unset", () => {
+    vi.stubEnv("S3_WALKTHROUGH_BUCKET", "");
+    expect(s3WalkthroughsEnabled()).toBe(false);
+  });
+
+  it("rejects non-video content types before signing", async () => {
+    vi.stubEnv("S3_WALKTHROUGH_BUCKET", "project-it-walkthroughs");
+    await expect(
+      presignWalkthrough({ contentType: "text/html", size: 10 }),
+    ).rejects.toThrow(UploadError);
+  });
+
+  it("rejects oversize Walkthroughs before signing", async () => {
+    vi.stubEnv("S3_WALKTHROUGH_BUCKET", "project-it-walkthroughs");
+    await expect(
+      presignWalkthrough({ contentType: "video/mp4", size: LIMITS.walkthrough + 1 }),
+    ).rejects.toThrow(/200MB/);
   });
 });

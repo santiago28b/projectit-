@@ -6,13 +6,17 @@ import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
 import { env } from "@/server/lib/env";
 import { probeDurationSeconds } from "@/server/services/transcription";
 import { checkWalkthroughDuration } from "@/shared/models/walkthrough";
 
 /**
- * Local-disk storage for Walkthroughs and deliverable files (dev/demo only;
- * `/uploads` is git-ignored). Names on disk are random, never the browser's.
+ * Local-disk storage for deliverable files (and Walkthroughs when S3 is unset).
+ * `/uploads` is git-ignored. Names on disk are random, never the browser's.
+ * Walkthroughs use S3 via `presignWalkthrough` when `S3_WALKTHROUGH_BUCKET` is set.
  */
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const NAME = /^[0-9a-f-]{36}\.[a-z0-9]{1,5}$/;
@@ -42,6 +46,8 @@ const INLINE_TYPES: Record<string, string> = {
   jpeg: "image/jpeg",
   pdf: "application/pdf",
 };
+
+const PRESIGN_EXPIRES_SECONDS = 15 * 60;
 
 export class UploadError extends Error {}
 
@@ -74,7 +80,11 @@ async function enforceWalkthroughLength(
   }
 }
 
-function extensionFor(file: File, kind: UploadKind): string {
+export function s3WalkthroughsEnabled(): boolean {
+  return Boolean(env.s3WalkthroughBucket);
+}
+
+function extensionFor(file: { type: string; name: string }, kind: UploadKind): string {
   if (kind === "walkthrough") {
     const ext = VIDEO_TYPES[file.type];
     if (!ext) throw new UploadError("Walkthrough must be an MP4, WebM, or MOV video");
@@ -84,15 +94,69 @@ function extensionFor(file: File, kind: UploadKind): string {
   return FILE_EXTENSIONS.has(ext) ? ext : "bin";
 }
 
-/** Save an upload and return its absolute URL. */
+function assertSize(size: number, kind: UploadKind) {
+  if (size === 0) throw new UploadError("The file is empty");
+  if (size > LIMITS[kind])
+    throw new UploadError(`File is larger than ${LIMITS[kind] / MB}MB`);
+}
+
+function s3Client(): S3Client {
+  return new S3Client({ region: env.awsRegion });
+}
+
+function publicObjectUrl(key: string): string {
+  const bucket = env.s3WalkthroughBucket!;
+  const region = env.awsRegion;
+  if (region === "us-east-1") {
+    return `https://${bucket}.s3.amazonaws.com/${key}`;
+  }
+  return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+}
+
+export interface PresignWalkthroughInput {
+  contentType: string;
+  size: number;
+}
+
+export interface PresignWalkthroughResult {
+  uploadUrl: string;
+  publicUrl: string;
+  key: string;
+}
+
+/**
+ * Issue a short-lived PUT URL so the browser uploads the Walkthrough straight to S3.
+ * Returns 501-style `UploadError` via caller when S3 is not configured.
+ */
+export async function presignWalkthrough(
+  input: PresignWalkthroughInput,
+): Promise<PresignWalkthroughResult> {
+  if (!env.s3WalkthroughBucket) {
+    throw new UploadError("S3 Walkthrough uploads are not configured");
+  }
+  assertSize(input.size, "walkthrough");
+  const ext = VIDEO_TYPES[input.contentType];
+  if (!ext) throw new UploadError("Walkthrough must be an MP4, WebM, or MOV video");
+
+  const key = `walkthroughs/${randomUUID()}.${ext}`;
+  const command = new PutObjectCommand({
+    Bucket: env.s3WalkthroughBucket,
+    Key: key,
+    ContentType: input.contentType,
+  });
+  const uploadUrl = await getSignedUrl(s3Client(), command, {
+    expiresIn: PRESIGN_EXPIRES_SECONDS,
+  });
+  return { uploadUrl, publicUrl: publicObjectUrl(key), key };
+}
+
+/** Save an upload to local disk and return its absolute URL. */
 export async function saveUpload(
   file: File,
   kind: UploadKind,
   probe: (filePath: string) => Promise<number | null> = probeDurationSeconds,
 ): Promise<string> {
-  if (file.size === 0) throw new UploadError("The file is empty");
-  if (file.size > LIMITS[kind])
-    throw new UploadError(`File is larger than ${LIMITS[kind] / MB}MB`);
+  assertSize(file.size, kind);
 
   const name = `${randomUUID()}.${extensionFor(file, kind)}`;
   await mkdir(UPLOAD_DIR, { recursive: true });
@@ -102,7 +166,7 @@ export async function saveUpload(
   return `${env.appUrl}/api/uploads/${name}`;
 }
 
-/** Stream a stored upload, honoring a `Range` header so video can seek. */
+/** Stream a stored local upload, honoring a `Range` header so video can seek. */
 export async function readUpload(
   name: string,
   range: string | null,
