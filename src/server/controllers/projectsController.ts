@@ -8,7 +8,7 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function noCandidate() {
   return NextResponse.json(
-    { error: "Switch to a Candidate account to see Projects" },
+    { error: "Switch to a Candidate account first" },
     { status: 401 },
   );
 }

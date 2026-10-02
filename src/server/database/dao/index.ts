@@ -35,20 +35,7 @@ export const candidatesDao =
 // Candidate-flow DAOs are Postgres-only: the team runs local Postgres, and
 // DATABASE_URL can also point at a Supabase connection string.
 export { pgProjectsDao as projectsDao } from "./pg/projects";
-
-export const submissionsDao = {
-  async findByProjectAndCandidate(_projectId: string, _candidateId: string) {
-    void _projectId;
-    void _candidateId;
-    throw new Error(
-      "submissionsDao.findByProjectAndCandidate not implemented",
-    );
-  },
-  async insert(_row: unknown) {
-    void _row;
-    throw new Error("submissionsDao.insert not implemented");
-  },
-};
+export { pgSubmissionsDao as submissionsDao } from "./pg/submissions";
 
 export const evidenceDao = {
   async listByCandidate(_candidateId: string) {
