@@ -110,7 +110,22 @@ supabase/migrations/      # SQL applied by npm run db:reset
 | GET | `/api/matching/recommendations?candidateId=` |
 | POST | `/api/submissions` |
 | GET | `/api/review/[submissionId]` |
+| GET | `/api/review` |
+| PATCH | `/api/review/[submissionId]` |
 | POST | `/api/shortlist` |
+
+## Candidate review (Ticket 06)
+
+- Company portal → `/company/review` lists reviewable seeded Submissions.
+- `/company/review/[submissionId]` shows deliverables, a Walkthrough, per-skill Evidence, a step-by-step Rubric, notes, follow-up questions, and Shortlisting.
+- Sample mode works without a DB write path: edits persist in browser local storage. The video/repo URL are placeholders.
+- Live review uses the configured database backend (`pg` via `DATABASE_URL` by default, or `DATABASE_BACKEND=supabase` with service-role keys). Person A owns seed/migrations — run `npm run db:reset` after schema changes.
+- A seeded `company_admin` must link to its Company via `users.company_id` (or `profile_data.companyId` / `company_id`). That Company must own or Sponsor the Project through `company_projects`.
+- Prefer the role-switcher cookie for the current reviewer. `GET /api/review` and `GET /api/review/[submissionId]` also accept `?reviewerId=<seeded-user-id>`. Writes include `reviewerId`; Company ownership/Sponsorship is checked server-side.
+- `PATCH /api/review/[submissionId]` accepts `action: "override"` with `reviewerId`, `skill`, `level`, `rationale`, or `action: "evaluation"` with `reviewerId`, `rubricResults`, `notes`, `interviewRecommended`.
+- `POST /api/shortlist` accepts `companyId`, `candidateId`, `submissionId`, `reviewerId`, and optional `jobId`. Repeated sequential requests reuse an existing Shortlist entry.
+- Overrides preserve AI Evidence and save separate Company-reviewed Evidence. The latest Company-reviewed row wins for that Submission's skill, even when its level is lower.
+- Run focused tests with `npm test -- src/server/services/review.test.ts` (no DB required).
 
 ## Scripts
 
@@ -119,6 +134,7 @@ supabase/migrations/      # SQL applied by npm run db:reset
 | `npm run dev` | Next.js dev server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
+| `npm test` | Vitest tests |
 | `npm run db:create` | Create the `projectit` database if missing |
 | `npm run db:reset` | Drop public schema, apply migrations + seed |
 | `npm run db:psql` | Open `psql` on `DATABASE_URL` |

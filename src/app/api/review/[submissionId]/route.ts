@@ -8,3 +8,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const { submissionId } = await context.params;
   return reviewController.getReviewScreen(request, submissionId);
 }
+
+export async function PATCH(request: NextRequest, context: RouteContext) {
+  const { submissionId } = await context.params;
+  return reviewController.updateReview(request, submissionId);
+}
