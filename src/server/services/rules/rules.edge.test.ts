@@ -135,10 +135,10 @@ describe("rankProjectsForCandidate edge cases", () => {
     expect(results).toEqual([]);
   });
 
-  it("includes invite-only Projects only for invited Candidates", () => {
+  it("never recommends private Projects, even to invited Candidates", () => {
     const priv = project({ id: "proj-private", visibility: "invite" });
     expect(rankProjectsForCandidate(candidate(), [], [priv])).toEqual([]);
-    expect(rankProjectsForCandidate(candidate(), [], [priv], ["proj-private"])).toHaveLength(1);
+    expect(rankProjectsForCandidate(candidate(), [], [priv], ["proj-private"])).toEqual([]);
   });
 
   it("breaks ties alphabetically by title so the order is stable", () => {

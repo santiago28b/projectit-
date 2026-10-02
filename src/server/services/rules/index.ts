@@ -191,7 +191,7 @@ export function rankProjectsForCandidate(
 
   return finish(
     projects
-      .filter((p) => isEligible(p, candidate, invitedProjectIds))
+      .filter((p) => p.visibility !== "invite" && isEligible(p, candidate, invitedProjectIds))
       .map((project) => {
         let score = 0;
         const reasons: string[] = [];

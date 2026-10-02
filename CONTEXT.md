@@ -30,8 +30,11 @@ _Avoid_: Template, open project
 A Company that attaches its name to a Platform Project and gains the right to review its Submissions.
 
 **Visibility**:
-Who can see and start a Project: public (shown in the Marketplace), or restricted to a university, a region, or invited Candidates only.
+Who can see and start a Project: public (shown in the Marketplace), restricted to a university or region, or private (accessible to Candidates by direct link only).
 _Avoid_: Access, privacy
+
+**Private Project**:
+A link-only Project (stored as `invite` Visibility). Published Private Projects never appear in the Marketplace or Candidate Matches. Any Candidate with the direct Project link can open and submit; no Invitation record is required. Guests must select a Candidate account. The owning Company can copy the link from its Project submissions dashboard. Draft Projects remain inaccessible to Candidates. Links can be forwarded and are not recipient-specific access controls.
 
 **Invitation**:
 A Company's request for a specific Candidate to complete a non-public Project.

@@ -12,7 +12,7 @@ const VISIBILITY_OPTIONS: { value: ProjectVisibility; label: string }[] = [
   { value: "public", label: "Public (Marketplace)" },
   { value: "university", label: "University" },
   { value: "region", label: "Region" },
-  { value: "invite", label: "Invite only" },
+  { value: "invite", label: "Private (link only)" },
 ];
 
 export function CreateProjectView() {

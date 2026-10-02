@@ -43,18 +43,18 @@ describe("matchingService.recommendProjectsForCandidate", () => {
     expect(results[0].reasons.length).toBeGreaterThan(0);
   });
 
-  it("hides invite-only and closed Projects unless invited", async () => {
+  it("hides private and closed Projects", async () => {
     const { repo } = world();
     const ids = (await createMatchingService(repo).recommendProjectsForCandidate("cand-maria")).map((r) => r.item.id);
     expect(ids).not.toContain("proj-private");
     expect(ids).not.toContain("proj-closed");
   });
 
-  it("includes an invite-only Project once the Candidate is invited", async () => {
+  it("hides private Projects even when the Candidate is invited", async () => {
     const { repo, data } = world();
     data.invitations["cand-maria"] = ["proj-private"];
     const ids = (await createMatchingService(repo).recommendProjectsForCandidate("cand-maria")).map((r) => r.item.id);
-    expect(ids).toContain("proj-private");
+    expect(ids).not.toContain("proj-private");
   });
 
   it("returns nothing for an unknown Candidate", async () => {
