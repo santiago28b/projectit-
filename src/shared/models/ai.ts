@@ -27,6 +27,17 @@ export interface GeneratedProject {
   rubric: { name: string; description: string }[];
 }
 
+/** Whether output came from the live AI or the canned sample (AI down or no key). */
+export type AISource = "ai" | "sample";
+
+export interface ProjectIdeasResult {
+  skills: ExtractedSkills;
+  ideas: ProjectIdea[];
+  source: AISource;
+}
+
+export type GeneratedProjectResult = GeneratedProject & { source: AISource };
+
 export interface SubmissionEvaluationResult {
   evidence: {
     skill: string;

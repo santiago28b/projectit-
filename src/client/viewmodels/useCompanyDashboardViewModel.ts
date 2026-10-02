@@ -3,12 +3,14 @@
 import { useCallback, useState, useTransition } from "react";
 
 import { companyDashboardRepo } from "@/client/repos/companyDashboardRepo";
+import { reviewService } from "@/client/services/reviewService";
 import type { CompanyDashboard } from "@/shared/models/companyDashboard";
 
 export function useCompanyDashboardViewModel() {
   const [dashboard, setDashboard] = useState<CompanyDashboard | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const load = useCallback(() => {
@@ -31,5 +33,30 @@ export function useCompanyDashboardViewModel() {
     });
   }, []);
 
-  return { dashboard, unauthorized, error, isPending, load };
+  async function removeFromShortlist(shortlistId: string) {
+    setRemoving(shortlistId);
+    try {
+      await reviewService.removeFromShortlist(shortlistId);
+      setDashboard((current) =>
+        current && {
+          ...current,
+          shortlist: current.shortlist.filter((s) => s.id !== shortlistId),
+        },
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove");
+    } finally {
+      setRemoving(null);
+    }
+  }
+
+  return {
+    dashboard,
+    unauthorized,
+    error,
+    isPending,
+    load,
+    removeFromShortlist,
+    removing,
+  };
 }

@@ -64,7 +64,7 @@ The demo must run end to end by 3:30pm:
 ### Company: Projects
 
 29. As a Company, I want to create a Project by hand (title, scenario, instructions, skills, expected duration, difficulty, deliverables, Rubric, deadline, Visibility), so that I can screen for exactly what I need.
-30. As a Company, I want to paste a job description and get extracted skills plus three Project ideas, then a full generated Project I can edit, so that writing a Project is fast. (Faked with a canned response today.)
+30. As a Company, I want to paste a job description and get extracted skills plus three Project ideas, then a full generated Project I can edit, so that writing a Project is fast. (Live Claude; falls back to clearly labeled sample ideas when the AI is unavailable.)
 31. As a Company, I want to edit everything the AI generates before I publish, so that I stay in control.
 32. As a Company, I want to set Visibility to public, university, region, or invite-only, so that I control who can take part.
 33. As a Company, I want to Sponsor a Platform Project, so that my name is on it and I can review its Submissions.
@@ -111,9 +111,9 @@ The demo must run end to end by 3:30pm:
 - **matching**: finds recommended Projects for a Candidate, Candidates who fit a Job, and Projects that test a Job. Every result includes reasons. Ranking is a deterministic score built from skill overlap and Evidence strength. The AI is only used to phrase the reasons, so matching still works if the AI is down. The score is used only for sorting and is never shown.
 - **Visibility for matching**: Candidates who fit a Job are shown with an Evidence summary (skill, level, source, Project name). Submission details are only available to the Project's owner or its Sponsors.
 - **review**: shows the Candidate review screen data, saves an Evaluation, and adds to the Shortlist.
-- **ai (AIService)**: `extractJobSkills`, `generateProjectIdeas`, `generateProject`, `evaluateSubmission` (returns Evidence per skill plus follow-up questions), and `explainMatch`. A mock version returns canned responses and runs whenever there's no API key or a call fails. Project generation always uses the mock today.
+- **ai (AIService)**: `extractJobSkills`, `generateProjectIdeas`, `generateFromJob`, `generateProject`, `evaluateSubmission` (returns Evidence per skill plus follow-up questions), and `explainMatch`. A mock version returns canned responses and runs whenever there's no API key or a call fails. Project generation results carry `source: "ai" | "sample"` so the UI never passes the sample off as live output.
 
-**Screens**: landing, role switcher, Candidate dashboard, Marketplace (with Recommended for you), Project detail, workspace and submit, Company dashboard, Job create and detail (with Matches), Project create (manual, plus the faked AI generator), Project dashboard, and Candidate review (the most polished screen). Indigo is the platform color, blue for Company, green for Candidate, and teal for AI.
+**Screens**: landing, role switcher, Candidate dashboard, Marketplace (with Recommended for you), Project detail, workspace and submit, Company dashboard, Job create and detail (with Matches), Project create (manual, plus the AI generator), Project dashboard, and Candidate review (the most polished screen). Indigo is the platform color, blue for Company, green for Candidate, and teal for AI.
 
 **Seed data**: Summit Logistics with the Job "Software Engineering Intern" (TypeScript, React, REST APIs, Debugging, Testing). The Platform Project Broken Delivery Tracker (90 minutes), sponsored by Summit. Two or three other Platform Projects (data, product). Candidate Maria, with profile skills and no Submission yet, so the demo creates hers. Three or four other Candidates with strong, average, and incomplete Submissions and their Evidence.
 
@@ -131,7 +131,6 @@ The demo must run end to end by 3:30pm:
 ## Out of Scope
 
 - Project templates (other than Platform Projects) and job scraping or job discovery.
-- A real AI project generator (faked with canned output today).
 - Real authentication, payments, prizes, notifications, and email.
 - In-browser video recording or video transcription.
 - A "discoverable" opt-in for Candidates. This is **required before a real launch**: right now every Candidate with Evidence can show up in a Company's Matches.
@@ -142,4 +141,4 @@ The demo must run end to end by 3:30pm:
 
 - Glossary: `CONTEXT.md`. Decision record: `docs/adr/0001-projects-link-to-jobs-by-skills.md`.
 - Never show a percentage or overall score anywhere in the UI.
-- Cut order if time runs short: the Invitation flow, then the faked AI generator, then the Project dashboard counts.
+- Cut order if time runs short: the Invitation flow, then the AI generator, then the Project dashboard counts.

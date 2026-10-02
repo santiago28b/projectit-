@@ -9,7 +9,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 export const aiProjectsController = {
-  /** Extract skills + 3 Project ideas from a pasted Job description (mocked). */
+  /** Extract skills + 3 Project ideas from a pasted Job description (live Claude, sample fallback). */
   async generateFromJob(request: NextRequest) {
     try {
       const current = await getCurrentUser();
@@ -32,13 +32,9 @@ export const aiProjectsController = {
         );
       }
 
-      const jobDescription = body.jobDescription.trim();
-      const [skills, ideas] = await Promise.all([
-        aiService.extractJobSkills(jobDescription),
-        aiService.generateProjectIdeas(jobDescription),
-      ]);
-
-      return NextResponse.json({ skills, ideas });
+      return NextResponse.json(
+        await aiService.generateFromJob(body.jobDescription.trim()),
+      );
     } catch (err) {
       if (err instanceof SyntaxError) {
         return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
@@ -47,7 +43,7 @@ export const aiProjectsController = {
     }
   },
 
-  /** Expand a chosen idea into a full editable Project draft (mocked). */
+  /** Expand a chosen idea into a full editable Project draft (live Claude, sample fallback). */
   async expandIdea(request: NextRequest) {
     try {
       const current = await getCurrentUser();

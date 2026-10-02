@@ -152,7 +152,20 @@ export function createMatchingService(repo: MatchingRepository): MatchingService
       }
     }
 
-    return { job, candidates, projects, reviewableSubmissions };
+    // Evidence summary only: drop Submission ids the Company can't open.
+    const summarized = candidates.map((match) => ({
+      ...match,
+      item: {
+        ...match.item,
+        profile: match.item.profile.map(({ submissionId, ...entry }) =>
+          canViewSubmission(job.companyId, entry.projectId, links)
+            ? { ...entry, submissionId }
+            : entry,
+        ),
+      },
+    }));
+
+    return { job, candidates: summarized, projects, reviewableSubmissions };
   },
 
   async listJobsForCompany(companyId) {

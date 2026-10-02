@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { requireCompany } from "@/server/controllers/auth";
 import { jsonError } from "@/server/controllers/http";
-import {
-  getCurrentCandidate,
-  getCurrentUser,
-} from "@/server/lib/currentUser";
+import { getCurrentCandidate } from "@/server/lib/currentUser";
 import { projectsService } from "@/server/services/projects";
 import type { CreateProjectInput } from "@/shared/models/projects";
 import type {
@@ -24,22 +22,6 @@ function projectsError(err: unknown) {
   if (/required|Invalid|Only /.test(message)) return jsonError(err, 400);
   if (/Company admin/.test(message)) return jsonError(err, 401);
   return jsonError(err);
-}
-
-async function requireCompany() {
-  const current = await getCurrentUser();
-  if (!current || current.user.role !== "company_admin" || !current.company) {
-    return {
-      error: NextResponse.json(
-        { error: "Switch to a Company account first" },
-        { status: 401 },
-      ),
-    };
-  }
-  return {
-    companyId: current.company.id,
-    userId: current.user.id,
-  };
 }
 
 function parseCreateBody(body: unknown): CreateProjectInput | NextResponse {

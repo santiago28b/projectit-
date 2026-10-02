@@ -177,18 +177,29 @@ function Workspace({ model }: { model: ViewModel }) {
               </p>
             </div>
           </div>
-          <button
-            className={`${buttonLayout} border-blue-700 bg-blue-700 text-white hover:bg-blue-800`}
-            onClick={model.shortlist}
-            disabled={model.busy || Boolean(data.shortlist)}
-          >
-            {data.shortlist ? (
-              <BookmarkCheck size={17} />
-            ) : (
+          {data.shortlist ? (
+            <div className="flex flex-col items-end gap-1">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-blue-800">
+                <BookmarkCheck size={17} /> Shortlisted
+              </p>
+              <button
+                className="text-sm font-medium text-zinc-600 underline-offset-2 hover:text-red-700 hover:underline disabled:opacity-50"
+                onClick={model.removeFromShortlist}
+                disabled={model.busy}
+              >
+                Remove from Shortlist
+              </button>
+            </div>
+          ) : (
+            <button
+              className={`${buttonLayout} border-blue-700 bg-blue-700 text-white hover:bg-blue-800`}
+              onClick={model.shortlist}
+              disabled={model.busy}
+            >
               <BookmarkPlus size={17} />
-            )}
-            {data.shortlist ? "Shortlisted" : "Add to Shortlist"}
-          </button>
+              Add to Shortlist
+            </button>
+          )}
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <p className="font-medium">{data.project.title}</p>

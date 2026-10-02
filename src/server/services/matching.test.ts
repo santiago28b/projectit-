@@ -116,6 +116,7 @@ describe("matchingService.jobOverview", () => {
     expect(overview?.reviewableSubmissions["cand-sam"]).toBeUndefined();
     const sam = overview?.candidates.find((c) => c.item.candidate.id === "cand-sam");
     expect(sam?.item.profile[0].projectTitle).toBe("Other Co Task");
+    expect(sam?.item.profile[0].submissionId).toBeUndefined();
   });
 
   it("bundles the Job, Candidates and Projects together", async () => {

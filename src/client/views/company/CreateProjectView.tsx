@@ -25,6 +25,7 @@ export function CreateProjectView() {
     setJobDescription,
     skills,
     ideas,
+    usedSample,
     error,
     isPending,
     update,
@@ -133,6 +134,8 @@ export function CreateProjectView() {
             {isPending ? "Generating…" : "Extract skills & ideas"}
           </button>
 
+          {usedSample && <SampleNotice />}
+
           {skills && (
             <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-teal-800">
@@ -201,6 +204,8 @@ export function CreateProjectView() {
           >
             ← Start over
           </button>
+
+          {usedSample && <SampleNotice />}
 
           <Field label="Title">
             <input
@@ -403,6 +408,19 @@ export function CreateProjectView() {
         </form>
       )}
     </main>
+  );
+}
+
+/** Never let canned output pass for a live AI result. */
+function SampleNotice() {
+  return (
+    <p
+      role="status"
+      className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+    >
+      The AI is unavailable right now, so these are sample ideas, not ones
+      written for your Job description. Edit them freely, or try again later.
+    </p>
   );
 }
 

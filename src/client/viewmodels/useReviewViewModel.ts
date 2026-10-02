@@ -88,7 +88,6 @@ export function useReviewViewModel(submissionId: string) {
             }
           : await reviewService.override({
               submissionId,
-              reviewerId: data.reviewer.id,
               skill,
               level,
               rationale,
@@ -150,14 +149,24 @@ export function useReviewViewModel(submissionId: string) {
               createdAt: new Date().toISOString(),
             }
           : await reviewService.addToShortlist({
-              ...input,
-              reviewerId: data.reviewer.id,
+              candidateId: input.candidateId,
+              submissionId,
             });
         commit({ ...data, shortlist });
         setNotice(
           isSample
             ? "Sample Shortlist saved on this device."
             : `${data.candidateName} added to ${data.company.name}'s Shortlist.`,
+        );
+      }),
+    removeFromShortlist: () =>
+      perform(async () => {
+        if (!data?.shortlist) return;
+        if (!isSample)
+          await reviewService.removeFromShortlist(data.shortlist.id);
+        commit({ ...data, shortlist: null });
+        setNotice(
+          `${data.candidateName} removed from ${data.company.name}'s Shortlist.`,
         );
       }),
   };

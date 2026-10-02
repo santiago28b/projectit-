@@ -10,10 +10,10 @@ export interface RecommendedProject {
 }
 
 export const matchingRepo = {
-  recommendForCandidate(candidateId: string, signal?: AbortSignal) {
-    const params = new URLSearchParams({ candidateId });
+  /** For the role-switcher Candidate; the server reads who that is from the session. */
+  recommendForCandidate(signal?: AbortSignal) {
     return apiFetch<{ recommendations: RecommendedProject[] }>(
-      `/api/matching/recommendations?${params.toString()}`,
+      "/api/matching/recommendations",
       { signal },
     ).then((data) => data.recommendations);
   },

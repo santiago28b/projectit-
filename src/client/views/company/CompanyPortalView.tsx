@@ -7,7 +7,7 @@ import { useCompanyDashboardViewModel } from "@/client/viewmodels/useCompanyDash
 import type { CompanyProjectListItem } from "@/shared/models/projects";
 
 export function CompanyPortalView() {
-  const { dashboard, unauthorized, error, isPending, load } =
+  const { dashboard, unauthorized, error, isPending, load, removeFromShortlist, removing } =
     useCompanyDashboardViewModel();
 
   useEffect(() => {
@@ -138,7 +138,12 @@ export function CompanyPortalView() {
 
         {/* Jobs */}
         <section aria-labelledby="jobs-heading">
-          <SectionHeader id="jobs-heading" title="Jobs" />
+          <SectionHeader
+            id="jobs-heading"
+            title="Jobs"
+            actionHref="/company/jobs/new"
+            actionLabel="New Job"
+          />
           {openJobs.length === 0 ? (
             <Empty text="No open Jobs yet." />
           ) : (
@@ -213,12 +218,22 @@ export function CompanyPortalView() {
               {dashboard.shortlist.map((entry) => (
                 <li
                   key={entry.id}
-                  className="rounded-lg px-3 py-2 text-sm text-zinc-800"
+                  className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm text-zinc-800"
                 >
-                  <span className="font-medium">{entry.candidateName}</span>
-                  {entry.jobTitle && (
-                    <span className="text-zinc-500"> · {entry.jobTitle}</span>
-                  )}
+                  <span>
+                    <span className="font-medium">{entry.candidateName}</span>
+                    {entry.jobTitle && (
+                      <span className="text-zinc-500"> · {entry.jobTitle}</span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => removeFromShortlist(entry.id)}
+                    disabled={removing === entry.id}
+                    aria-label={`Remove ${entry.candidateName} from Shortlist`}
+                    className="text-xs font-medium text-zinc-500 hover:text-red-700 hover:underline disabled:opacity-50"
+                  >
+                    {removing === entry.id ? "Removing…" : "Remove"}
+                  </button>
                 </li>
               ))}
             </ul>

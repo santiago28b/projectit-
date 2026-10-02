@@ -61,7 +61,10 @@ export const pgProjectsDao = {
        group by p.id`,
       [id],
     );
-    return rows[0] ? domainRow<CardRow>(rows[0]) : null;
+    if (!rows[0]) return null;
+    const detail = domainRow<CardRow>(rows[0]);
+    // A DB without the project_resources migration has no column at all.
+    return { ...detail, resources: Array.isArray(detail.resources) ? detail.resources : [] };
   },
 
   async rubric(projectId: string): Promise<RubricCriterion[]> {

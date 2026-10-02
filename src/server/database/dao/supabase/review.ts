@@ -47,17 +47,6 @@ export const supabaseReviewDao = {
   user: (id: string) => find<User & { companyId?: string }>("users", id),
   evidence: (id: string) => find<Evidence>("evidence", id),
 
-  async reviewers() {
-    const { data, error } = await createAdminClient()
-      .from("users")
-      .select("*")
-      .eq("role", "company_admin");
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((row) =>
-      domainRow<User & { companyId?: string }>(row),
-    );
-  },
-
   async companyIds(projectId: string) {
     const { data, error } = await createAdminClient()
       .from("company_projects")
@@ -187,6 +176,18 @@ export const supabaseReviewDao = {
       .single();
     if (error) throw new Error(error.message);
     return domainRow<Shortlist>(data);
+  },
+
+  /** True when a row was deleted; scoped to the Company so no one removes another's entry. */
+  async removeShortlist(id: string, companyId: string) {
+    const { data, error } = await createAdminClient()
+      .from("shortlists")
+      .delete()
+      .eq("id", id)
+      .eq("company_id", companyId)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
   },
 
   async jobCompany(jobId: string) {

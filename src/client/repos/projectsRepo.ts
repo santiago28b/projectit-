@@ -1,8 +1,8 @@
 import { apiFetch } from "@/client/repos/http";
 import type {
-  ExtractedSkills,
-  GeneratedProject,
+  GeneratedProjectResult,
   ProjectIdea,
+  ProjectIdeasResult,
 } from "@/shared/models/ai";
 import type { Project } from "@/shared/models/domain";
 import type {
@@ -71,7 +71,7 @@ export const projectsRepo = {
   },
 
   generateFromJob(jobDescription: string, signal?: AbortSignal) {
-    return apiFetch<{ skills: ExtractedSkills; ideas: ProjectIdea[] }>(
+    return apiFetch<ProjectIdeasResult>(
       "/api/company/projects/generate",
       {
         method: "POST",
@@ -82,7 +82,7 @@ export const projectsRepo = {
   },
 
   expandIdea(idea: ProjectIdea, signal?: AbortSignal) {
-    return apiFetch<{ project: GeneratedProject }>(
+    return apiFetch<{ project: GeneratedProjectResult }>(
       "/api/company/projects/generate/expand",
       {
         method: "POST",

@@ -4,6 +4,7 @@ export const reviewService = {
   listSubmissions: reviewRepo.listSubmissions,
   saveEvaluation: reviewRepo.saveEvaluation,
   override: reviewRepo.override,
+  removeFromShortlist: reviewRepo.removeFromShortlist,
 
   getReviewScreen(submissionId: string, signal?: AbortSignal) {
     return reviewRepo.getReviewScreen(submissionId, signal);
@@ -11,11 +12,9 @@ export const reviewService = {
 
   addToShortlist(
     input: {
-      companyId: string;
       candidateId: string;
       jobId?: string;
       submissionId?: string;
-      reviewerId: string;
     },
     signal?: AbortSignal,
   ) {
