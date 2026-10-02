@@ -2,7 +2,13 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getCurrentCandidate } from "@/server/lib/currentUser";
-import { readUpload, saveUpload, UploadError } from "@/server/services/uploads";
+import {
+  presignWalkthrough,
+  readUpload,
+  s3WalkthroughsEnabled,
+  saveUpload,
+  UploadError,
+} from "@/server/services/uploads";
 import type { Candidate } from "@/shared/models/domain";
 
 import { uploadsController } from "./uploadsController";
@@ -12,6 +18,8 @@ vi.mock("@/server/services/projects", () => ({ projectsService: {} }));
 vi.mock("@/server/services/uploads", () => ({
   saveUpload: vi.fn(),
   readUpload: vi.fn(),
+  presignWalkthrough: vi.fn(),
+  s3WalkthroughsEnabled: vi.fn(() => false),
   UploadError: class extends Error {},
 }));
 
@@ -21,6 +29,14 @@ function upload(fields: Record<string, string | File>) {
   const form = new FormData();
   for (const [key, value] of Object.entries(fields)) form.append(key, value);
   return new NextRequest("http://localhost/api/uploads", { method: "POST", body: form });
+}
+
+function presignBody(body: unknown) {
+  return new NextRequest("http://localhost/api/uploads/presign", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 const clip = () => new File(["abc"], "w.mp4", { type: "video/mp4" });
@@ -62,6 +78,63 @@ describe("POST /api/uploads", () => {
     const res = await uploadsController.create(upload({ file: clip(), kind: "walkthrough" }));
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Walkthrough must be an MP4, WebM, or MOV video" });
+  });
+});
+
+describe("POST /api/uploads/presign", () => {
+  beforeEach(() => {
+    vi.mocked(getCurrentCandidate).mockResolvedValue(maria);
+    vi.mocked(s3WalkthroughsEnabled).mockReturnValue(true);
+    vi.mocked(presignWalkthrough).mockReset();
+  });
+
+  it("returns 401 when no Candidate is signed in", async () => {
+    vi.mocked(getCurrentCandidate).mockResolvedValue(null);
+    expect((await uploadsController.presign(presignBody({ kind: "walkthrough" }))).status).toBe(
+      401,
+    );
+  });
+
+  it("returns 501 when S3 is not configured", async () => {
+    vi.mocked(s3WalkthroughsEnabled).mockReturnValue(false);
+    const res = await uploadsController.presign(
+      presignBody({ kind: "walkthrough", contentType: "video/mp4", size: 10 }),
+    );
+    expect(res.status).toBe(501);
+    expect(presignWalkthrough).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when kind is not walkthrough", async () => {
+    const res = await uploadsController.presign(
+      presignBody({ kind: "file", contentType: "application/pdf", size: 10 }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns uploadUrl and publicUrl", async () => {
+    vi.mocked(presignWalkthrough).mockResolvedValue({
+      uploadUrl: "https://s3.example/put",
+      publicUrl: "https://s3.example/walkthroughs/x.mp4",
+      key: "walkthroughs/x.mp4",
+    });
+    const res = await uploadsController.presign(
+      presignBody({ kind: "walkthrough", contentType: "video/mp4", size: 1000 }),
+    );
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({
+      uploadUrl: "https://s3.example/put",
+      publicUrl: "https://s3.example/walkthroughs/x.mp4",
+    });
+  });
+
+  it("returns 400 when the video type is rejected", async () => {
+    vi.mocked(presignWalkthrough).mockImplementation(async () => {
+      throw new UploadError("Walkthrough must be an MP4, WebM, or MOV video");
+    });
+    const res = await uploadsController.presign(
+      presignBody({ kind: "walkthrough", contentType: "text/html", size: 10 }),
+    );
+    expect(res.status).toBe(400);
   });
 });
 
