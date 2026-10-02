@@ -86,10 +86,10 @@ describe("Marketplace Visibility", () => {
     expect(ids).toEqual(["public", "my-university", "my-region"]);
   });
 
-  it("shows an invite-only Project to an invited Candidate", async () => {
+  it("hides an invite-only Project even from an invited Candidate", async () => {
     const service = createProjectsService(fakeDao({ invited: ["invite-only"] }));
     const ids = (await service.listMarketplace(maria)).map((p) => p.id);
-    expect(ids).toContain("invite-only");
+    expect(ids).not.toContain("invite-only");
   });
 
   it("lists only public published Projects for a Guest", async () => {
@@ -114,7 +114,25 @@ describe("Project detail", () => {
   it("is hidden when the Candidate isn't eligible, even by direct URL", async () => {
     const service = createProjectsService(fakeDao({}));
     expect(await service.getDetail("other-university", maria)).toBeNull();
-    expect(await service.getDetail("invite-only", maria)).toBeNull();
+  });
+
+  it("opens an invite-only Project by direct URL without an Invitation", async () => {
+    const service = createProjectsService(fakeDao({}));
+    expect((await service.getDetail("invite-only", maria))?.id).toBe("invite-only");
+    expect(await service.canStart(project("private", "invite"), maria)).toBe(true);
+  });
+
+  it("does not unlock draft or closed private Projects by URL", async () => {
+    for (const status of ["draft", "closed"] as const) {
+      const privateProject = { ...project("private", "invite"), status };
+      const dao = {
+        ...fakeDao({}),
+        findDetail: async () => ({ ...privateProject, resources: [] }),
+      };
+      const service = createProjectsService(dao);
+      expect(await service.getDetail("private", maria)).toBeNull();
+      expect(await service.canStart(privateProject, maria)).toBe(false);
+    }
   });
 
   it("includes the Candidate's Submission when they already submitted", async () => {
@@ -161,7 +179,7 @@ describe("more Visibility rules", () => {
     expect((await createProjectsService(dao).getDetail("public", maria))?.rubric).toEqual(rubric);
   });
 
-  it("canStart follows the same rules as the Marketplace", async () => {
+  it("canStart respects restrictions while allowing private link access", async () => {
     const service = createProjectsService(fakeDao({ invited: ["invite-only"] }));
     const byId = (id: string) => catalog.find((p) => p.id === id)!;
     expect(await service.canStart(byId("public"), maria)).toBe(true);

@@ -35,7 +35,7 @@ function visibilityLabel(project: ProjectCard): string {
     case "region":
       return `${project.visibilityTarget ?? "Regional"} region`;
     case "invite":
-      return "Invited";
+      return "Private";
   }
 }
 

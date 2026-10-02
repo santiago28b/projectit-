@@ -20,6 +20,16 @@ function requireCompanyAdmin(
   if (!companyId) throw new Error("Company admin required");
 }
 
+function canAccessProject(
+  project: Project,
+  candidate: Candidate,
+  invited: string[],
+): boolean {
+  return project.visibility === "invite"
+    ? project.status === "published"
+    : isEligible(project, candidate, invited);
+}
+
 async function withCounts(
   items: { project: Project; relationshipType: "owner" | "sponsor" }[],
 ): Promise<CompanyProjectListItem[]> {
@@ -63,13 +73,13 @@ export function createProjectsService(dao: ProjectsDao) {
       }
       const invited = await dao.invitedProjectIds(candidate.id);
       return projects.filter((project) =>
-        isEligible(project, candidate, invited),
+        project.visibility !== "invite" && isEligible(project, candidate, invited),
       );
     },
 
     /**
      * Project detail, or null when the viewer can't see it. Opening a
-     * restricted Project by URL doesn't get around Visibility. A Candidate
+    * invite-only Project by URL grants access to Candidates. A Candidate
      * who already submitted can always reopen it. Guests see public only.
      */
     async getDetail(
@@ -94,7 +104,7 @@ export function createProjectsService(dao: ProjectsDao) {
         dao.invitedProjectIds(candidate.id),
         dao.submissionId(projectId, candidate.id),
       ]);
-      if (!mySubmissionId && !isEligible(project, candidate, invited)) {
+      if (!mySubmissionId && !canAccessProject(project, candidate, invited)) {
         return null;
       }
       return {
@@ -107,7 +117,7 @@ export function createProjectsService(dao: ProjectsDao) {
     /** Whether the Candidate may start (and submit to) this Project now. */
     async canStart(project: Project, candidate: Candidate): Promise<boolean> {
       const invited = await dao.invitedProjectIds(candidate.id);
-      return isEligible(project, candidate, invited);
+      return canAccessProject(project, candidate, invited);
     },
 
     async getById(projectId: string): Promise<Project | null> {
@@ -174,7 +184,7 @@ export function createProjectsService(dao: ProjectsDao) {
       const candidate = await candidatesDao.findById(candidateId);
       if (!candidate) return false;
       const invited = await dao.invitedProjectIds(candidateId);
-      return isEligible(project, candidate, invited);
+      return canAccessProject(project, candidate, invited);
     },
 
     async listForCompany(companyId: string): Promise<CompanyProjectListItem[]> {

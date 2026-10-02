@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { Check, Copy, ExternalLink } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { useProjectDashboardViewModel } from "@/client/viewmodels/useProjectDashboardViewModel";
 
@@ -67,7 +68,7 @@ export function ProjectDashboardView({ projectId }: { projectId: string }) {
                 </span>
               )}
               <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-zinc-600">
-                {project.visibility}
+                {project.visibility === "invite" ? "Private (link only)" : project.visibility}
                 {project.visibilityTarget ? `: ${project.visibilityTarget}` : ""}
               </span>
             </div>
@@ -94,6 +95,10 @@ export function ProjectDashboardView({ projectId }: { projectId: string }) {
             </button>
           )}
         </div>
+
+        {relationshipType === "owner" && project.visibility === "invite" && (
+          <ProjectShareLink key={project.id} projectId={project.id} />
+        )}
 
         <dl className="mt-6 grid gap-4 sm:grid-cols-3">
           <Stat label="Invited" value={String(invitedCount)} />
@@ -184,6 +189,68 @@ export function ProjectDashboardView({ projectId }: { projectId: string }) {
         </aside>
       </div>
     </Shell>
+  );
+}
+
+function ProjectShareLink({ projectId }: { projectId: string }) {
+  const path = `/candidate/projects/${projectId}`;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.value = new URL(path, window.location.origin).href;
+    }
+  }, [path]);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(new URL(path, window.location.origin).href);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("error");
+    }
+  }
+
+  return (
+    <div className="mt-6 border-t border-zinc-200 pt-4">
+      <label htmlFor="project-share-link" className="text-sm font-medium text-zinc-900">
+        Project link
+      </label>
+      <div className="mt-2 flex min-w-0 items-center gap-2">
+        <input
+          id="project-share-link"
+          ref={inputRef}
+          readOnly
+          defaultValue={path}
+          onFocus={(event) => event.currentTarget.select()}
+          className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700"
+        />
+        <button
+          type="button"
+          onClick={copyLink}
+          aria-label={copyStatus === "copied" ? "Link copied" : "Copy project link"}
+          title={copyStatus === "copied" ? "Link copied" : "Copy project link"}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-300 text-zinc-700 hover:bg-zinc-100"
+        >
+          {copyStatus === "copied" ? <Check size={18} /> : <Copy size={18} />}
+        </button>
+        <Link
+          href={path}
+          target="_blank"
+          rel="noopener noreferrer"
+          prefetch={false}
+          aria-label="Open project link"
+          title="Open project link"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-300 text-zinc-700 hover:bg-zinc-100"
+        >
+          <ExternalLink size={18} />
+        </Link>
+      </div>
+      <p role="status" className="mt-1 text-xs text-zinc-600">
+        {copyStatus === "copied" ? "Link copied." : copyStatus === "error" ? "Couldn't copy link." : ""}
+      </p>
+    </div>
   );
 }
 
