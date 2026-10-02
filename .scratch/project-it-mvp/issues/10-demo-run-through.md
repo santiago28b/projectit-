@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] The full demo runs from a fresh re-seed with no manual fixes
+- [ ] The full demo runs from a fresh re-seed (run by Person A) with no manual fixes
 - [ ] Every step can be reached by clicking, with no typed URLs
 - [ ] No percentage or overall score appears anywhere
 - [ ] The AI mock lets the demo run with the network off

@@ -9,11 +9,12 @@
 - [x] Next.js + TypeScript + Tailwind app runs locally; **Postgres via Supabase** (cloud; no Docker). MVVM layout: `src/app`, `src/client`, `src/server`, `src/shared`. *(Changed from original SQLite/Prisma; shadcn/ui still pending.)*
 - [x] Schema covers every entity in the spec, with a uniqueness rule of one Submission per (Project, Candidate) and no Project-to-Job link — see `supabase/migrations/20261002163702_init_schema.sql` (RLS on; push with `npm run db:push`)
 - [ ] Seed data: Summit Logistics; Job "Software Engineering Intern" (TypeScript, React, REST APIs, Debugging, Testing); Platform Project Broken Delivery Tracker (90 min), sponsored by Summit; 2–3 other Platform Projects; Maria with profile skills and no Submissions; 3–4 other Candidates with strong, average, and incomplete Submissions and Evidence
-- [ ] One-click role switcher between Maria and Summit Logistics (and other seeded accounts)
+- [ ] Company users are linked to their Company (the schema has no `users`→`companies` link yet; add a nullable `company_id` on `users` in a new migration)
+- [ ] One-click role switcher between Maria and Summit Logistics (and other seeded accounts): a cookie holding a seeded user id, not Supabase Auth. Server reads use the admin client so RLS doesn't block the demo
 - [x] Landing page: "See what candidates can do, not just what their resumes say," with I'm Hiring and I'm Looking for Opportunities buttons (`src/client/views/LandingView.tsx`; portal stubs at `/candidate`, `/company`, `/admin`)
 - [x] `AIService` has `extractJobSkills`, `generateProjectIdeas`, `generateProject`, `evaluateSubmission`, and `explainMatch`. The mock returns canned output and runs when there's no API key or a call fails (`src/server/services/ai.ts`)
-- [ ] Vitest set up with a fresh test database helper
-- [ ] One command resets and re-seeds the database
+- [ ] Vitest set up for **pure functions** (matching, Evidence profile, eligibility). No test database: everyone shares one Supabase cloud DB
+- [ ] One command resets and re-seeds the database. **Only the schema owner (Person A) runs it**, since the DB is shared
 
 ## Comments
 
