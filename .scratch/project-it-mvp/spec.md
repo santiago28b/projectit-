@@ -86,7 +86,8 @@ The demo must run end to end by 3:30pm:
 
 **Stack**
 - Next.js (App Router) with TypeScript, Tailwind, and shadcn/ui. Server actions and route handlers; no separate backend.
-- SQLite through Prisma. Seeded accounts and a role switcher instead of real auth.
+- Postgres on one shared Supabase cloud project (migrations in the repo, RLS on; server reads go through the admin client). Seeded accounts and a cookie-based role switcher instead of real auth.
+- Code layout is MVVM: routes in the app folder, views and viewmodels on the client, and actions, services, repositories, and models on the server.
 - Files and Walkthrough videos are stored locally or as mock URLs. Upload only; no in-browser recording.
 
 **Domain model (uses the CONTEXT.md names)**
@@ -118,7 +119,7 @@ The demo must run end to end by 3:30pm:
 
 ## Testing Decisions
 
-- **One seam**: each module's public interface, called against a fresh test SQLite database with the mock AIService. Don't test UI, Prisma internals, or prompt text.
+- **One seam**: the rules inside each service (matching, Evidence profile, eligibility, access), written as pure functions and tested without a database, since the team shares one cloud DB. Don't test UI, Supabase queries, or prompt text.
 - A good test describes behavior in domain terms, for example: "a second Submission to the same Project is rejected," "a Company-reviewed level beats an AI-assessed one," "a Company can't see Submissions to a Project it doesn't own or Sponsor."
 - Highest-value tests, in this order:
   1. matching: Maria is recommended Broken Delivery Tracker; Candidates who fit the Job are ranked by Evidence; every Match has reasons; restricted Projects are never recommended to ineligible Candidates.
