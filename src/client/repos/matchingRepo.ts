@@ -1,8 +1,8 @@
 import { apiFetch } from "@/client/repos/http";
 import type { Project } from "@/shared/models/domain";
-import type { JobOverview } from "@/server/services/matching";
+import type { JobOverview, TrackRecord } from "@/server/services/matching";
 
-export type { JobOverview };
+export type { JobOverview, TrackRecord };
 
 export interface RecommendedProject {
   item: Project;

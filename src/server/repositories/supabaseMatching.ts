@@ -8,7 +8,10 @@ import type {
   Job,
   Project,
 } from "@/shared/models/domain";
-import type { CompanyProjectLink } from "@/server/services/rules";
+import type {
+  CompanyProjectLink,
+  CompletedProject,
+} from "@/server/services/rules";
 
 import {
   type Row,
@@ -177,6 +180,46 @@ export const supabaseMatchingRepository = {
       if (p) out[r.id] = { id: p.id, title: p.title };
     }
     return out;
+  },
+
+  async listCompletedProjectsForCandidates(
+    candidateIds: string[],
+  ): Promise<CompletedProject[]> {
+    if (candidateIds.length === 0) return [];
+    const rows = check(
+      await db()
+        .from("submissions")
+        .select("candidate_id, projects ( type, expected_duration_minutes )")
+        .in("candidate_id", candidateIds),
+      "listCompletedProjectsForCandidates",
+    );
+    const out: CompletedProject[] = [];
+    for (const r of rows as Row[]) {
+      const p = Array.isArray(r.projects) ? r.projects[0] : r.projects;
+      if (!p) continue;
+      out.push({
+        candidateId: r.candidate_id,
+        projectType: p.type,
+        expectedDurationMinutes: p.expected_duration_minutes ?? null,
+      });
+    }
+    return out;
+  },
+
+  /** Shortlisted by this Company for this Job, or with no Job attached. */
+  async listShortlistedCandidateIds(
+    companyId: string,
+    jobId: string,
+  ): Promise<string[]> {
+    const rows = check(
+      await db()
+        .from("shortlists")
+        .select("candidate_id")
+        .eq("company_id", companyId)
+        .or(`job_id.eq.${jobId},job_id.is.null`),
+      "listShortlistedCandidateIds",
+    );
+    return [...new Set((rows as Row[]).map((r) => r.candidate_id as string))];
   },
 
   async listCompanyProjectLinks(

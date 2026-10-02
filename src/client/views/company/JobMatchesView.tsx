@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 import { useJobMatchesViewModel } from "@/client/viewmodels/useJobMatchesViewModel";
+import type { TrackRecord } from "@/client/services/matchingService";
 import type { EvidenceLevel, EvidenceSource } from "@/shared/models/domain";
 
 interface JobMatchesViewProps {
@@ -105,7 +106,7 @@ export function JobMatchesView({
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         {/* Candidates who fit */}
         <section className="lg:col-span-2" aria-labelledby="candidates-heading">
-          <SectionTitle id="candidates-heading" title="Candidates who fit" note="Matched on Evidence they've shown" />
+          <SectionTitle id="candidates-heading" title="Candidates who fit" note="Matched on Evidence they've shown · more completed Projects rank higher" />
           {candidates.length === 0 ? (
             <Empty text={isPending ? "Loading…" : "No Candidates match this Job yet."} />
           ) : (
@@ -121,10 +122,18 @@ export function JobMatchesView({
                   <li key={item.candidate.id} className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-semibold text-zinc-900">{item.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-semibold text-zinc-900">{item.name}</h3>
+                          {item.shortlisted && (
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                              ★ Shortlisted
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-zinc-500">
                           {[item.candidate.university, item.candidate.region].filter(Boolean).join(" · ")}
                         </p>
+                        <TrackRecordStats record={item.trackRecord} />
                       </div>
                       {reviewable.map((r) => (
                         <Link
@@ -208,6 +217,36 @@ export function JobMatchesView({
         </section>
       </div>
     </Shell>
+  );
+}
+
+function plural(n: number, word: string) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+/** Hours from the Projects' expected durations, e.g. "~4.5 hrs". */
+function formatHours(minutes: number) {
+  const hours = Math.round((minutes / 60) * 10) / 10;
+  return `~${hours} ${hours === 1 ? "hr" : "hrs"}`;
+}
+
+function TrackRecordStats({ record }: { record: TrackRecord }) {
+  return (
+    <dl className="mt-2 flex flex-wrap gap-2 text-xs">
+      <div className="rounded-md bg-zinc-100 px-2 py-1 text-zinc-700">
+        <dt className="sr-only">Projects completed</dt>
+        <dd>
+          <span className="font-semibold text-zinc-900">{plural(record.projectsCompleted, "Project")}</span>{" "}
+          completed · {formatHours(record.minutesCompleted)}
+        </dd>
+      </div>
+      <div className="rounded-md bg-zinc-100 px-2 py-1 text-zinc-700">
+        <dt className="sr-only">Company Projects completed</dt>
+        <dd>
+          <span className="font-semibold text-zinc-900">{plural(record.companyProjectsCompleted, "Company Project")}</span>
+        </dd>
+      </div>
+    </dl>
   );
 }
 

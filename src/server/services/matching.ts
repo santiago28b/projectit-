@@ -10,12 +10,14 @@ import {
   projectsForJob as rankProjectsForJob,
   rankCandidatesForJob,
   rankProjectsForCandidate,
+  summarizeTrackRecords,
   type EvidenceProfileEntry,
   type MatchResult,
+  type TrackRecord,
 } from "@/server/services/rules";
 import type { Candidate, Evidence, Job, Project } from "@/server/models/domain";
 
-export type { MatchResult } from "@/server/services/rules";
+export type { MatchResult, TrackRecord } from "@/server/services/rules";
 
 /** A Candidate who fits a Job, with what the Company is allowed to see. */
 export interface JobCandidateMatch {
@@ -23,6 +25,10 @@ export interface JobCandidateMatch {
   name: string;
   /** Evidence summary only (skill, level, source, Project). Never Submission details. */
   profile: EvidenceProfileEntry[];
+  /** Projects submitted, their expected hours, and how many were Company Projects. */
+  trackRecord: TrackRecord;
+  /** On this Company's Shortlist for this Job (or its general Shortlist). */
+  shortlisted: boolean;
 }
 
 /** Everything the Company's Job page needs, in one call. */
@@ -100,7 +106,14 @@ export function createMatchingService(repo: MatchingRepository): MatchingService
     if (!job) return [];
 
     const people = await repo.listCandidatesWithNames();
-    const profiles = await profilesFor(repo, people.map((p) => p.candidate.id));
+    const ids = people.map((p) => p.candidate.id);
+    const [profiles, completed, shortlistedIds] = await Promise.all([
+      profilesFor(repo, ids),
+      repo.listCompletedProjectsForCandidates(ids),
+      repo.listShortlistedCandidateIds(job.companyId, job.id),
+    ]);
+    const trackRecords = summarizeTrackRecords(ids, completed);
+    const shortlisted = new Set(shortlistedIds);
     const nameById = new Map(people.map((p) => [p.candidate.id, p.name]));
 
     const ranked = rankCandidatesForJob(
@@ -108,6 +121,7 @@ export function createMatchingService(repo: MatchingRepository): MatchingService
       people.map(({ candidate }) => ({
         candidate,
         profile: profiles.get(candidate.id) ?? [],
+        projectsCompleted: trackRecords.get(candidate.id)?.projectsCompleted ?? 0,
       })),
     );
 
@@ -116,6 +130,8 @@ export function createMatchingService(repo: MatchingRepository): MatchingService
         candidate: item,
         name: nameById.get(item.id) ?? "Unknown Candidate",
         profile: profiles.get(item.id) ?? [],
+        trackRecord: trackRecords.get(item.id)!,
+        shortlisted: shortlisted.has(item.id),
       },
       reasons,
     }));

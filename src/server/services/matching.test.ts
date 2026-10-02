@@ -32,6 +32,11 @@ function world() {
       { companyId: SUMMIT, projectId: "proj-bdt", relationshipType: "sponsor" },
       { companyId: OTHER, projectId: "proj-other", relationshipType: "owner" },
     ],
+    submissionOwners: { "sub-alex": "cand-alex", "sub-sam": "cand-sam" },
+    shortlists: [
+      { companyId: SUMMIT, candidateId: "cand-alex", jobId: "job-swe-intern" },
+      { companyId: OTHER, candidateId: "cand-sam", jobId: null },
+    ],
   });
 }
 
@@ -78,6 +83,33 @@ describe("matchingService.candidatesForJob", () => {
     expect(Object.keys(alex).sort()).toEqual(["item", "reasons"]);
     expect(alex.item.profile.map((e) => e.skill).sort()).toEqual(["Debugging", "Testing"]);
     expect(alex.item.profile[0].projectTitle).toBe("Broken Delivery Tracker");
+  });
+
+  it("includes each Candidate's completed Projects, hours, and Company Projects", async () => {
+    const { repo } = world();
+    const results = await createMatchingService(repo).candidatesForJob("job-swe-intern");
+    const byName = Object.fromEntries(results.map((r) => [r.item.name, r.item.trackRecord]));
+    expect(byName["Alex Kim"]).toEqual({ projectsCompleted: 1, minutesCompleted: 90, companyProjectsCompleted: 0 });
+    expect(byName["Sam Lee"]).toEqual({ projectsCompleted: 1, minutesCompleted: 90, companyProjectsCompleted: 1 });
+    expect(byName["Maria Santos"]).toEqual({ projectsCompleted: 0, minutesCompleted: 0, companyProjectsCompleted: 0 });
+  });
+
+  it("ranks a Candidate with more completed Projects above an equal-skill one with fewer", async () => {
+    const { repo, data } = world();
+    data.candidates.push({ candidate: candidate({ id: "cand-busy" }), name: "Busy Bee" }); // same profile as Maria
+    data.projects.push(project({ id: "proj-extra", title: "Extra", skills: ["Marketing"] }));
+    data.submissions["sub-busy"] = "proj-extra";
+    data.submissionOwners["sub-busy"] = "cand-busy";
+    const names = (await createMatchingService(repo).candidatesForJob("job-swe-intern")).map((r) => r.item.name);
+    expect(names.indexOf("Busy Bee")).toBeLessThan(names.indexOf("Maria Santos"));
+  });
+
+  it("marks only Candidates on this Company's Shortlist", async () => {
+    const { repo } = world();
+    const results = await createMatchingService(repo).candidatesForJob("job-swe-intern");
+    const shortlisted = results.filter((r) => r.item.shortlisted).map((r) => r.item.name);
+    // Sam is on another Company's Shortlist, not Summit's.
+    expect(shortlisted).toEqual(["Alex Kim"]);
   });
 
   it("returns nothing for an unknown Job", async () => {

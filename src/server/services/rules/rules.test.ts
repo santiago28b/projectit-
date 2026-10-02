@@ -6,6 +6,7 @@ import {
   projectsForJob,
   rankCandidatesForJob,
   rankProjectsForCandidate,
+  summarizeTrackRecords,
 } from "./index";
 import type { CreateProjectInput } from "@/shared/models/projects";
 import { candidate, evidence, job, project } from "./fixtures";
@@ -215,6 +216,43 @@ describe("rankCandidatesForJob", () => {
     ]);
     expect(results.map((r) => r.item.id)).toEqual(["cand-fit"]);
     expect(Object.keys(results[0] ?? {}).sort()).toEqual(["item", "reasons"]);
+  });
+
+  it("ranks Candidates who completed more Projects higher when skills are equal", () => {
+    const results = rankCandidatesForJob(job(), [
+      { candidate: candidate({ id: "cand-new", skills: ["React"] }), profile: [], projectsCompleted: 0 },
+      { candidate: candidate({ id: "cand-busy", skills: ["React"] }), profile: [], projectsCompleted: 3 },
+    ]);
+    expect(results.map((r) => r.item.id)).toEqual(["cand-busy", "cand-new"]);
+  });
+
+  it("never lets completed Projects bring in a Candidate with no skill fit", () => {
+    const results = rankCandidatesForJob(job(), [
+      { candidate: candidate({ id: "cand-none", skills: ["Marketing"] }), profile: [], projectsCompleted: 10 },
+    ]);
+    expect(results).toEqual([]);
+  });
+});
+
+describe("summarizeTrackRecords", () => {
+  it("counts Projects, expected minutes, and Company Projects per Candidate", () => {
+    const records = summarizeTrackRecords(["cand-a", "cand-b"], [
+      { candidateId: "cand-a", projectType: "platform", expectedDurationMinutes: 90 },
+      { candidateId: "cand-a", projectType: "company", expectedDurationMinutes: 60 },
+      { candidateId: "cand-a", projectType: "company", expectedDurationMinutes: null },
+      { candidateId: "cand-other", projectType: "company", expectedDurationMinutes: 120 },
+    ]);
+    expect(records.get("cand-a")).toEqual({
+      projectsCompleted: 3,
+      minutesCompleted: 150,
+      companyProjectsCompleted: 2,
+    });
+    expect(records.get("cand-b")).toEqual({
+      projectsCompleted: 0,
+      minutesCompleted: 0,
+      companyProjectsCompleted: 0,
+    });
+    expect(records.has("cand-other")).toBe(false);
   });
 });
 
