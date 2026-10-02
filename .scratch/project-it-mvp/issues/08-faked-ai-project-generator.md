@@ -1,6 +1,6 @@
 # 08: Faked AI Project generator
 
-**What to build:** As Summit, on Create Project I choose "Generate with AI," paste a job description, see the extracted skills and 3 Project ideas, pick one, and get a full generated Project I can edit before publishing. For today, `AIService` returns canned output.
+**What to build:** As Summit, on Create Project I choose "Generate with AI," paste a job description, see the extracted skills and 3 Project ideas, pick one, and get a full generated Project I can edit before publishing. `AIService` calls Claude (`claudeProjectGenerator.ts`) and falls back to labeled sample output when there's no key or the call fails.
 
 **Blocked by:** 07
 

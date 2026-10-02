@@ -6,6 +6,7 @@ import { createAdminClient } from "@/server/lib/supabase/admin";
 import { toJob, type Row } from "@/server/repositories/matchingMappers";
 import type { Job } from "@/shared/models/domain";
 import type { DashboardShortlistEntry } from "@/shared/models/companyDashboard";
+import type { CreateJobInput } from "@/shared/models/jobs";
 
 export async function listJobsForCompany(companyId: string): Promise<Job[]> {
   if (getDatabaseBackend() === "supabase") {
@@ -25,6 +26,42 @@ export async function listJobsForCompany(companyId: string): Promise<Job[]> {
     [companyId],
   );
   return rows.map(toJob);
+}
+
+export async function createJob(
+  companyId: string,
+  input: CreateJobInput,
+): Promise<Job> {
+  if (getDatabaseBackend() === "supabase") {
+    const { data, error } = await createAdminClient()
+      .from("jobs")
+      .insert({
+        company_id: companyId,
+        title: input.title,
+        description: input.description,
+        required_skills: input.requiredSkills,
+        preferred_skills: input.preferredSkills,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return toJob(data as Row);
+  }
+
+  const { rows } = await db.query<Row>(
+    `insert into public.jobs
+       (company_id, title, description, required_skills, preferred_skills)
+     values ($1, $2, $3, $4, $5)
+     returning *`,
+    [
+      companyId,
+      input.title,
+      input.description,
+      input.requiredSkills,
+      input.preferredSkills,
+    ],
+  );
+  return toJob(rows[0]);
 }
 
 export async function listShortlistForCompany(

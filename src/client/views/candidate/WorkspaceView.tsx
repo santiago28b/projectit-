@@ -47,6 +47,7 @@ export function WorkspaceView({ projectId }: { projectId: string }) {
   const vm = useWorkspaceViewModel(projectId);
   const [link, setLink] = useState("");
   const project = vm.project;
+  const resources = project?.resources ?? [];
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
@@ -86,11 +87,11 @@ export function WorkspaceView({ projectId }: { projectId: string }) {
 
             <ResourceList
               title="Starter files"
-              items={project.resources.filter((r) => r.kind === "starter")}
+              items={resources.filter((r) => r.kind === "starter")}
             />
             <ResourceList
               title="Resources"
-              items={project.resources.filter((r) => r.kind === "reference")}
+              items={resources.filter((r) => r.kind === "reference")}
             />
           </div>
 

@@ -2,6 +2,7 @@
 
 import { ChevronDownIcon } from "lucide-react";
 import Link from "next/link";
+import { Fragment } from "react";
 
 import { ROLE_STYLES } from "@/client/components/RoleBadge";
 import { Button } from "@/client/components/ui/button";
@@ -123,7 +124,8 @@ export function AppShell({
           </div>
         </div>
       </header>
-      {children}
+      {/* Remount the page on account switch so client views refetch as the new user. */}
+      <Fragment key={current?.user.id ?? "anon"}>{children}</Fragment>
     </>
   );
 }

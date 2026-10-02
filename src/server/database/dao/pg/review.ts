@@ -36,13 +36,6 @@ export const pgReviewDao = {
   user: (id: string) => findById<User & { companyId?: string }>("users", id),
   evidence: (id: string) => findById<Evidence>("evidence", id),
 
-  async reviewers() {
-    const { rows } = await db.query<Record<string, unknown>>(
-      `select * from public.users where role = 'company_admin'`,
-    );
-    return rows.map((row) => domainRow<User & { companyId?: string }>(row));
-  },
-
   async companyIds(projectId: string) {
     const { rows } = await db.query<{ company_id: string }>(
       `select company_id
@@ -199,6 +192,15 @@ export const pgReviewDao = {
       ],
     );
     return domainRow<Shortlist>(rows[0]);
+  },
+
+  /** True when a row was deleted; scoped to the Company so no one removes another's entry. */
+  async removeShortlist(id: string, companyId: string) {
+    const { rowCount } = await db.query(
+      `delete from public.shortlists where id = $1 and company_id = $2`,
+      [id, companyId],
+    );
+    return (rowCount ?? 0) > 0;
   },
 
   async jobCompany(jobId: string) {

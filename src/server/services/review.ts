@@ -19,39 +19,31 @@ export function reviewerCompany(
 }
 
 export function createReviewService(dao: typeof reviewDao) {
-  async function reviewerFor(projectId: string, reviewerId?: string) {
-    const companyIds = await dao.companyIds(projectId);
-    const reviewers = reviewerId
-      ? [await dao.user(reviewerId)]
-      : await dao.reviewers();
-    const reviewer = reviewers.find(
-      (user) =>
-        user.role === "company_admin" &&
-        companyIds.includes(reviewerCompany(user) ?? ""),
-    );
-    if (!reviewer)
-      throw new Error(
-        "No linked Company reviewer owns or Sponsors this Project",
-      );
-    return { reviewer, companyId: reviewerCompany(reviewer)! };
+  /** The signed-in reviewer, only if their Company owns or Sponsors the Project. */
+  async function reviewerFor(projectId: string, reviewerId: string) {
+    const [companyIds, reviewer] = await Promise.all([
+      dao.companyIds(projectId),
+      dao.user(reviewerId),
+    ]);
+    const companyId = reviewerCompany(reviewer);
+    if (
+      reviewer.role !== "company_admin" ||
+      !companyId ||
+      !companyIds.includes(companyId)
+    )
+      throw new Error("Only a Company that owns or Sponsors this Project can review it");
+    return { reviewer, companyId };
   }
 
   return {
-    async listSubmissions(reviewerId?: string) {
+    async listSubmissions(reviewerId: string) {
+      const reviewer = await dao.user(reviewerId);
+      const companyId = reviewerCompany(reviewer);
+      if (reviewer.role !== "company_admin" || !companyId) return [];
       const entries = [];
       for (const submission of await dao.listSubmissions()) {
         const companyIds = await dao.companyIds(submission.projectId);
-        const reviewers = reviewerId
-          ? [await dao.user(reviewerId)]
-          : await dao.reviewers();
-        if (
-          !reviewers.some(
-            (user) =>
-              user.role === "company_admin" &&
-              companyIds.includes(reviewerCompany(user) ?? ""),
-          )
-        )
-          continue;
+        if (!companyIds.includes(companyId)) continue;
         const candidate = await dao.candidate(submission.candidateId);
         const [user, project] = await Promise.all([
           dao.user(candidate.userId),
@@ -69,7 +61,7 @@ export function createReviewService(dao: typeof reviewDao) {
 
     async getReviewScreen(
       submissionId: string,
-      reviewerId?: string,
+      reviewerId: string,
     ): Promise<ReviewScreenData> {
       const submission = await dao.submission(submissionId);
       const { reviewer, companyId } = await reviewerFor(
@@ -164,7 +156,7 @@ export function createReviewService(dao: typeof reviewDao) {
       return dao.saveOverride(evidence, input.level, input.rationale);
     },
 
-    async addToShortlist(input: ShortlistInput, reviewerId?: string) {
+    async addToShortlist(input: ShortlistInput, reviewerId: string) {
       if (!input.submissionId)
         throw new Error(
           "Submission is required to Shortlist a Candidate from review",
@@ -179,6 +171,11 @@ export function createReviewService(dao: typeof reviewDao) {
       if (input.jobId && (await dao.jobCompany(input.jobId)) !== companyId)
         throw new Error("Job belongs to another Company");
       return (await dao.shortlist(input)) ?? (await dao.insertShortlist(input));
+    },
+
+    async removeFromShortlist(shortlistId: string, companyId: string) {
+      if (!(await dao.removeShortlist(shortlistId, companyId)))
+        throw new Error("Shortlist entry not found");
     },
   };
 }

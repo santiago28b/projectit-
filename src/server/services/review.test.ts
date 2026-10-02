@@ -75,15 +75,6 @@ function fakeDao() {
         role: "company_admin",
         profileData: { companyId: "company" },
       }),
-    reviewers: vi
-      .fn()
-      .mockResolvedValue([
-        {
-          id: "reviewer",
-          role: "company_admin",
-          profileData: { companyId: "company" },
-        },
-      ]),
     listEvidence: vi.fn().mockResolvedValue([ai]),
     saveOverride: vi
       .fn()
@@ -97,6 +88,13 @@ function fakeDao() {
     insertShortlist: vi
       .fn()
       .mockImplementation(async (input) => ({ id: "shortlist", ...input })),
+    removeShortlist: vi.fn().mockResolvedValue(true),
+    listSubmissions: vi.fn().mockResolvedValue([
+      { id: "mine", projectId: "project", candidateId: "candidate", submittedAt: "2026-10-02" },
+      { id: "theirs", projectId: "other-project", candidateId: "candidate", submittedAt: "2026-10-02" },
+    ]),
+    candidate: vi.fn().mockResolvedValue({ id: "candidate", userId: "candidate-user" }),
+    project: vi.fn().mockResolvedValue({ id: "project", title: "Broken Delivery Tracker", skills: [] }),
     rubric: vi
       .fn()
       .mockResolvedValue([{ name: "Testing", description: "Test coverage" }]),
@@ -151,7 +149,7 @@ describe("review persistence", () => {
         companyId: "company",
         candidateId: "candidate",
         submissionId: "submission",
-      }),
+      }, "reviewer"),
     ).toEqual(existing);
     expect(dao.insertShortlist).not.toHaveBeenCalled();
   });
@@ -164,14 +162,14 @@ describe("review persistence", () => {
         companyId: "other",
         candidateId: "candidate",
         submissionId: "submission",
-      }),
+      }, "reviewer"),
     ).rejects.toThrow("does not match");
     await expect(
       service.addToShortlist({
         companyId: "company",
         candidateId: "other",
         submissionId: "submission",
-      }),
+      }, "reviewer"),
     ).rejects.toThrow("does not match");
     expect(dao.insertShortlist).not.toHaveBeenCalled();
   });
@@ -232,5 +230,63 @@ describe("review persistence", () => {
       }),
     ).rejects.toThrow("Invalid Evidence");
     expect(dao.saveOverride).not.toHaveBeenCalled();
+  });
+
+  it("rejects review by a Candidate even with a valid reviewer id", async () => {
+    const dao = fakeDao();
+    dao.user.mockResolvedValue({ id: "maria", role: "candidate", profileData: {} });
+    const service = createReviewService(dao as unknown as typeof reviewDao);
+    await expect(
+      service.override({
+        submissionId: "submission",
+        reviewerId: "maria",
+        skill: "SQL",
+        level: "strong",
+        rationale: "self-review",
+      }),
+    ).rejects.toThrow("owns or Sponsors");
+    expect(dao.saveOverride).not.toHaveBeenCalled();
+  });
+});
+
+describe("review list privacy", () => {
+  it("lists only Submissions to Projects the reviewer's Company owns or Sponsors", async () => {
+    const dao = fakeDao();
+    dao.companyIds.mockImplementation(async (projectId: string) =>
+      projectId === "project" ? ["company"] : ["another-company"],
+    );
+    dao.user.mockImplementation(async (id: string) =>
+      id === "reviewer"
+        ? { id, role: "company_admin", profileData: { companyId: "company" } }
+        : { id, name: "Maria Santos", role: "candidate", profileData: {} },
+    );
+    const service = createReviewService(dao as unknown as typeof reviewDao);
+    const list = await service.listSubmissions("reviewer");
+    expect(list.map((entry) => entry.id)).toEqual(["mine"]);
+  });
+
+  it("lists nothing for a user who isn't a Company admin", async () => {
+    const dao = fakeDao();
+    dao.user.mockResolvedValue({ id: "maria", role: "candidate", profileData: {} });
+    const service = createReviewService(dao as unknown as typeof reviewDao);
+    expect(await service.listSubmissions("maria")).toEqual([]);
+  });
+});
+
+describe("removing from the Shortlist", () => {
+  it("removes the Company's own entry", async () => {
+    const dao = fakeDao();
+    const service = createReviewService(dao as unknown as typeof reviewDao);
+    await service.removeFromShortlist("shortlist", "company");
+    expect(dao.removeShortlist).toHaveBeenCalledWith("shortlist", "company");
+  });
+
+  it("treats another Company's entry as not found", async () => {
+    const dao = fakeDao();
+    dao.removeShortlist.mockResolvedValue(false);
+    const service = createReviewService(dao as unknown as typeof reviewDao);
+    await expect(
+      service.removeFromShortlist("shortlist", "another-company"),
+    ).rejects.toThrow("not found");
   });
 });

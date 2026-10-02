@@ -2,11 +2,35 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getAIService, mockEvaluateSubmission } from "./ai";
 import { claudeEvaluateSubmission } from "./claudeEvaluator";
+import { claudeGenerateProject, claudeIdeasFromJob } from "./claudeProjectGenerator";
 
 vi.mock("./claudeEvaluator", () => ({
   claudeEvaluateSubmission: vi.fn(async () => ({
     evidence: [{ skill: "React", level: "strong", rationale: "from Claude" }],
     followUpQuestions: ["q"],
+  })),
+}));
+
+const liveIdea = {
+  title: "Fix the Route Optimizer",
+  scenario: "Drivers get routes that double back.",
+  skills: ["TypeScript", "Debugging"],
+  expectedDurationMinutes: 90,
+  deliverables: ["Repository URL", "Walkthrough video"],
+  whyRelevant: "Matches the routing work in the Job.",
+};
+
+vi.mock("./claudeProjectGenerator", () => ({
+  claudeIdeasFromJob: vi.fn(async () => ({
+    skills: { required: ["TypeScript"], preferred: [] },
+    ideas: [liveIdea],
+  })),
+  claudeGenerateProject: vi.fn(async () => ({
+    ...liveIdea,
+    description: "d",
+    instructions: "1. Do it",
+    difficulty: "Intermediate",
+    rubric: [{ name: "Correctness", description: "Works" }],
   })),
 }));
 
@@ -101,10 +125,44 @@ describe("getAIService", () => {
     expect(result.evidence[0].rationale).toBe("from Claude");
   });
 
-  it("keeps Project generation mocked even with a key", async () => {
+});
+
+describe("Project generation", () => {
+  beforeEach(() => vi.spyOn(console, "warn").mockImplementation(() => {}));
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    vi.mocked(claudeIdeasFromJob).mockClear();
+    vi.mocked(claudeGenerateProject).mockClear();
+  });
+
+  it("returns sample ideas, labeled as samples, when ANTHROPIC_API_KEY is unset", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const result = await getAIService().generateFromJob("any job");
+    expect(claudeIdeasFromJob).not.toHaveBeenCalled();
+    expect(result.source).toBe("sample");
+    expect(result.ideas).toHaveLength(3);
+  });
+
+  it("uses Claude for ideas and the full Project when ANTHROPIC_API_KEY is set", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
-    const ideas = await getAIService().generateProjectIdeas("any job");
-    expect(ideas).toHaveLength(3);
+    const ai = getAIService();
+    const result = await ai.generateFromJob("Routing intern");
+    expect(claudeIdeasFromJob).toHaveBeenCalledWith("sk-ant-test", "Routing intern", expect.any(Array));
+    expect(result).toMatchObject({ source: "ai", ideas: [liveIdea] });
+    const project = await ai.generateProject(liveIdea);
+    expect(project).toMatchObject({ source: "ai", title: "Fix the Route Optimizer" });
+  });
+
+  it("falls back to labeled samples when Claude fails", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
+    vi.mocked(claudeIdeasFromJob).mockRejectedValueOnce(new Error("timeout"));
+    vi.mocked(claudeGenerateProject).mockRejectedValueOnce(new Error("timeout"));
+    const ai = getAIService();
+    expect((await ai.generateFromJob("any job")).source).toBe("sample");
+    const project = await ai.generateProject(liveIdea);
+    expect(project.source).toBe("sample");
+    expect(project.rubric.length).toBeGreaterThan(0);
   });
 });
 

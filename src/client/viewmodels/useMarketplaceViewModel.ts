@@ -26,7 +26,7 @@ export function useMarketplaceViewModel(candidateId: string | null) {
       try {
         setError(null);
         const result =
-          await matchingService.recommendForCandidate(candidateId);
+          await matchingService.recommendForCandidate();
         setRecommendations(result);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load");

@@ -8,10 +8,7 @@ export default async function MarketplacePage() {
   return (
     <MarketplaceView
       recommended={
-        <RecommendedProjects
-          candidateId={candidate?.id ?? null}
-          projectHref={(id) => `/candidate/projects/${id}`}
-        />
+        <RecommendedProjects candidateId={candidate?.id ?? null} />
       }
     />
   );

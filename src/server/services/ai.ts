@@ -1,16 +1,25 @@
 import { env } from "@/server/lib/env";
 import { claudeEvaluateSubmission } from "@/server/services/claudeEvaluator";
+import {
+  claudeGenerateProject,
+  claudeIdeasFromJob,
+} from "@/server/services/claudeProjectGenerator";
+import { SEED_SKILLS } from "@/shared/constants/seedIds";
 import type {
   ExtractedSkills,
-  GeneratedProject,
+  GeneratedProjectResult,
   ProjectIdea,
+  ProjectIdeasResult,
   SubmissionEvaluationResult,
 } from "@/shared/models/ai";
 
 export type {
+  AISource,
   ExtractedSkills,
   GeneratedProject,
+  GeneratedProjectResult,
   ProjectIdea,
+  ProjectIdeasResult,
   SubmissionEvaluationResult,
 } from "@/shared/models/ai";
 
@@ -133,7 +142,9 @@ export function mockEvaluateSubmission(
 export interface AIService {
   extractJobSkills(jobDescription: string): Promise<ExtractedSkills>;
   generateProjectIdeas(jobDescription: string): Promise<ProjectIdea[]>;
-  generateProject(idea: ProjectIdea): Promise<GeneratedProject>;
+  /** Skills plus 3 Project ideas, saying whether they came from the live AI. */
+  generateFromJob(jobDescription: string): Promise<ProjectIdeasResult>;
+  generateProject(idea: ProjectIdea): Promise<GeneratedProjectResult>;
   evaluateSubmission(
     input: EvaluateSubmissionInput,
   ): Promise<SubmissionEvaluationResult>;
@@ -192,8 +203,16 @@ const mockAIService: AIService = {
       },
     ];
   },
+  async generateFromJob(jobDescription) {
+    const [skills, ideas] = await Promise.all([
+      mockAIService.extractJobSkills(jobDescription),
+      mockAIService.generateProjectIdeas(jobDescription),
+    ]);
+    return { skills, ideas, source: "sample" };
+  },
   async generateProject(idea) {
     return {
+      source: "sample",
       title: idea.title,
       scenario: idea.scenario,
       description: idea.whyRelevant,
@@ -321,9 +340,10 @@ function liveExplainMatch(input: { context: string; overlappingSkills: string[] 
 }
 
 /**
- * Live Claude for `evaluateSubmission` and `explainMatch` when ANTHROPIC_API_KEY is set.
- * Project generation stays mocked for now (faked by design).
- * Callers fall back to the mock when the live evaluateSubmission call fails.
+ * Live Claude for `evaluateSubmission`, `explainMatch`, and Project generation
+ * when ANTHROPIC_API_KEY is set. Generation falls back to the sample (marked
+ * `source: "sample"`) on any failure; callers fall back to the mock when the
+ * live evaluateSubmission call fails.
  */
 export function getAIService(): AIService {
   const apiKey = env.anthropicApiKey;
@@ -332,6 +352,24 @@ export function getAIService(): AIService {
     ...mockAIService,
     evaluateSubmission: (input) => claudeEvaluateSubmission(apiKey, input),
     explainMatch: liveExplainMatch,
+    generateFromJob: (jobDescription) =>
+      withFallback(
+        "generateFromJob",
+        async () => ({
+          ...(await claudeIdeasFromJob(apiKey, jobDescription, SEED_SKILLS)),
+          source: "ai" as const,
+        }),
+        () => mockAIService.generateFromJob(jobDescription),
+      ),
+    generateProject: (idea) =>
+      withFallback(
+        "generateProject",
+        async () => ({
+          ...(await claudeGenerateProject(apiKey, idea, SEED_SKILLS)),
+          source: "ai" as const,
+        }),
+        () => mockAIService.generateProject(idea),
+      ),
   };
 }
 

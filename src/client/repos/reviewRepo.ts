@@ -45,7 +45,6 @@ export const reviewRepo = {
 
   override(input: {
     submissionId: string;
-    reviewerId: string;
     skill: string;
     level: EvidenceLevel;
     rationale: string;
@@ -59,8 +58,9 @@ export const reviewRepo = {
     ).then((data) => data.evidence);
   },
 
+  /** The Company comes from the session, so only the Candidate and Submission are sent. */
   addToShortlist(
-    input: ShortlistInput & { reviewerId: string },
+    input: Omit<ShortlistInput, "companyId">,
     signal?: AbortSignal,
   ) {
     return apiFetch<{ shortlist: Shortlist }>("/api/shortlist", {
@@ -68,5 +68,11 @@ export const reviewRepo = {
       body: JSON.stringify(input),
       signal,
     }).then((data) => data.shortlist);
+  },
+
+  removeFromShortlist(shortlistId: string) {
+    return apiFetch<void>(`/api/shortlist/${shortlistId}`, {
+      method: "DELETE",
+    });
   },
 };

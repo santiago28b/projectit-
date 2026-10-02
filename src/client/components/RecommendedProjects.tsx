@@ -8,7 +8,7 @@ import { useMarketplaceViewModel } from "@/client/viewmodels/useMarketplaceViewM
 interface RecommendedProjectsProps {
   /** The signed-in Candidate (from the role switcher). */
   candidateId: string | null;
-  /** Where a card links to (Project detail, ticket 02). Cards aren't links until it exists. */
+  /** Where a card links to. Only pass this from another Client Component. */
   projectHref?: (projectId: string) => string;
   /** How many cards to show. */
   limit?: number;
@@ -21,7 +21,7 @@ interface RecommendedProjectsProps {
  */
 export function RecommendedProjects({
   candidateId,
-  projectHref,
+  projectHref = (id) => `/candidate/projects/${id}`,
   limit = 3,
 }: RecommendedProjectsProps) {
   const { recommendations, error, isPending, loadRecommendations } =

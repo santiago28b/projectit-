@@ -49,7 +49,7 @@ export const emptyProjectForm = (): ProjectFormState => ({
   ],
 });
 
-function splitList(value: string): string[] {
+export function splitList(value: string): string[] {
   return value
     .split(/[,;\n]/)
     .map((part) => part.trim())
@@ -78,6 +78,8 @@ export function useCreateProjectViewModel() {
   const [jobDescription, setJobDescription] = useState("");
   const [skills, setSkills] = useState<ExtractedSkills | null>(null);
   const [ideas, setIdeas] = useState<ProjectIdea[] | null>(null);
+  /** True when the last generator step fell back to sample output. */
+  const [usedSample, setUsedSample] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -117,6 +119,7 @@ export function useCreateProjectViewModel() {
   const startManual = useCallback(() => {
     setError(null);
     setForm(emptyProjectForm());
+    setUsedSample(false);
     setMode("form");
   }, []);
 
@@ -124,6 +127,7 @@ export function useCreateProjectViewModel() {
     setError(null);
     setSkills(null);
     setIdeas(null);
+    setUsedSample(false);
     setMode("ai");
   }, []);
 
@@ -134,6 +138,7 @@ export function useCreateProjectViewModel() {
         const result = await projectsService.generateFromJob(jobDescription);
         setSkills(result.skills);
         setIdeas(result.ideas);
+        setUsedSample(result.source === "sample");
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Could not generate ideas",
@@ -147,6 +152,7 @@ export function useCreateProjectViewModel() {
       try {
         setError(null);
         const generated = await projectsService.expandIdea(idea);
+        setUsedSample(generated.source === "sample");
         setForm(formFromGenerated(generated));
         setMode("form");
       } catch (err) {
@@ -199,6 +205,7 @@ export function useCreateProjectViewModel() {
     setJobDescription,
     skills,
     ideas,
+    usedSample,
     error,
     isPending,
     update,

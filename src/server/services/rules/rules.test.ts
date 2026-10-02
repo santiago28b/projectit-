@@ -9,6 +9,7 @@ import {
 } from "./index";
 import type { CreateProjectInput } from "@/shared/models/projects";
 import { candidate, evidence, job, project } from "./fixtures";
+import { normalizeJobInput } from "./jobInput";
 import { validateCreateInput } from "./projectInput";
 
 function validCreateInput(
@@ -279,5 +280,40 @@ describe("validateCreateInput", () => {
         }),
       ),
     ).not.toThrow();
+  });
+});
+
+describe("normalizeJobInput", () => {
+  const valid = {
+    title: " Data Analyst Intern ",
+    description: " Dashboards ",
+    requiredSkills: ["SQL", " Python "],
+    preferredSkills: ["Data Visualization"],
+  };
+
+  it("accepts a Job with a title and a required skill, trimming text", () => {
+    expect(normalizeJobInput(valid)).toEqual({
+      title: "Data Analyst Intern",
+      description: "Dashboards",
+      requiredSkills: ["SQL", "Python"],
+      preferredSkills: ["Data Visualization"],
+    });
+  });
+
+  it("requires a title and at least one required skill", () => {
+    expect(() => normalizeJobInput({ ...valid, title: "  " })).toThrow("Title");
+    expect(() => normalizeJobInput({ ...valid, requiredSkills: [" ", ""] })).toThrow(
+      "required skill",
+    );
+  });
+
+  it("de-duplicates skills and drops preferred skills that are already required", () => {
+    const result = normalizeJobInput({
+      ...valid,
+      requiredSkills: ["SQL", "sql", "Python"],
+      preferredSkills: ["python", "Testing", "Testing"],
+    });
+    expect(result.requiredSkills).toEqual(["SQL", "Python"]);
+    expect(result.preferredSkills).toEqual(["Testing"]);
   });
 });
