@@ -7,8 +7,19 @@ Domain language: [`CONTEXT.md`](CONTEXT.md). Decisions: [`docs/adr/`](docs/adr/)
 ## Stack
 
 - **Next.js** (App Router) + TypeScript + Tailwind
-- **Supabase** (Postgres + ready for Auth/Storage)
+- **Postgres everywhere** via Supabase — **not SQLite**
 - **MVVM:** `src/client` · `src/server` · `src/shared` · thin `src/app` routes
+
+### Local vs staging / production DB
+
+**Default: no Docker.** Your laptop runs Next.js; the database is your Supabase cloud project (Postgres).
+
+| Environment | What runs where |
+|---|---|
+| **Local** | `npm run dev` on your machine → remote Supabase (`.env.local`) |
+| **Staging / Prod** | Deployed Next.js → same or separate Supabase project (host env vars) |
+
+Optional later: `npm run db:start` (Docker) for a fully offline local Postgres. Not required.
 
 ## What each folder is
 
@@ -32,19 +43,23 @@ Views → ViewModels → Server Actions → Services → Repositories → Supaba
    npm install
    ```
 
-2. **Environment**
+2. **Environment (cloud Supabase — no Docker)**
 
-   Copy `.env.example` → `.env.local` (already gitignored) and fill from Supabase → **Project Settings → API**:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Fill from [Supabase](https://supabase.com/dashboard) → **Project Settings → API**:
 
    | Variable | Where |
    |---|---|
    | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key |
-   | `SUPABASE_SERVICE_ROLE_KEY` | `service_role` (server only; needed for seed/admin) |
-   | `OPENAI_API_KEY` | Optional — AIService mocks when empty |
-   | `NEXT_PUBLIC_APP_URL` | Defaults to `http://localhost:3000` |
+   | `SUPABASE_SERVICE_ROLE_KEY` | `service_role` (server only; for seed/admin) |
+   | `OPENAI_API_KEY` | Optional |
+   | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` locally |
 
-3. **Database**
+3. **Push schema to your Supabase project**
 
    ```bash
    npx supabase login
@@ -57,6 +72,8 @@ Views → ViewModels → Server Actions → Services → Repositories → Supaba
    ```bash
    npm run dev
    ```
+
+   Optional offline DB (Docker only if you want it later): `npm run db:start`.
 
 ## Layout
 
@@ -88,5 +105,8 @@ supabase/migrations/      # Postgres schema + RLS stubs
 | `npm run dev` | Next.js dev server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
-| `npm run db:push` | Push migrations to linked Supabase |
-| `npm run db:start` | Local Supabase (Docker) |
+| `npm run db:push` | Push migrations to linked remote Supabase |
+| `npm run db:start` | Optional local Supabase stack (needs Docker) |
+| `npm run db:stop` | Stop optional local stack |
+| `npm run db:status` | Print local URL + keys (if Docker stack is running) |
+| `npm run db:reset` | Reset optional local DB |
