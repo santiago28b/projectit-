@@ -27,3 +27,5 @@ Completed from the MVVM + Supabase baseline plan:
 - Landing + portal route placeholders
 
 Still open on this ticket: seed data, role switcher, Vitest, reset/re-seed command, shadcn/ui.
+
+Architecture now matches Prometheus: client `repos`/`services` call `/api/*`; server is `route → controller → service → dao` (server actions removed).

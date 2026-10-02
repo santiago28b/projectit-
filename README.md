@@ -7,96 +7,82 @@ Domain language: [`CONTEXT.md`](CONTEXT.md). Decisions: [`docs/adr/`](docs/adr/)
 ## Stack
 
 - **Next.js** (App Router) + TypeScript + Tailwind
-- **Postgres everywhere** via Supabase — **not SQLite**
-- **MVVM:** `src/client` · `src/server` · `src/shared` · thin `src/app` routes
+- **Postgres** via Supabase (cloud by default; Docker optional)
+- Architecture mirrors **Prometheus Portal**: client MVVM over HTTP + server routes/controllers/services/DAO
 
 ### Local vs staging / production DB
 
-**Default: no Docker.** Your laptop runs Next.js; the database is your Supabase cloud project (Postgres).
+**Default: no Docker.** Next.js on your machine → remote Supabase Postgres (`.env.local`).
 
 | Environment | What runs where |
 |---|---|
-| **Local** | `npm run dev` on your machine → remote Supabase (`.env.local`) |
-| **Staging / Prod** | Deployed Next.js → same or separate Supabase project (host env vars) |
+| **Local** | `npm run dev` → remote Supabase (`.env.local`) |
+| **Staging / Prod** | Deployed Next.js → Supabase (host env vars) |
 
-Optional later: `npm run db:start` (Docker) for a fully offline local Postgres. Not required.
+## Architecture (Prometheus-style)
 
-## What each folder is
+**Client (MVVM)** — views never call the DB:
+
+```
+views → viewmodels → services → repos (HTTP) → /api/*
+```
+
+**Server (not MVVM)** — App Router handlers are the route layer:
+
+```
+app/api/*/route.ts → controllers → services → database/dao → Supabase
+```
 
 | Folder | Role |
 |---|---|
-| **`src/app/`** | Next.js **routing only** — pages and layouts. Thin: import a View, render it. Not where business logic lives. |
-| **`src/client/`** | **UI layer (View + ViewModel)** — React components and hooks that call server actions. |
-| **`src/server/`** | **Model / backend layer** — services, repositories, server actions, service-role Supabase admin. Runs on the server. |
-| **`src/shared/`** | Code **both** client and server can import — domain types, constants, browser/SSR Supabase clients. No secrets. |
-
-```
-Views → ViewModels → Server Actions → Services → Repositories → Supabase
-         (client)        (server)      (server)     (server)
-```
+| **`src/app/`** | Pages (thin) + **`api/`** route handlers |
+| **`src/client/views/`** | Presentational UI |
+| **`src/client/viewmodels/`** | Hooks / screen state |
+| **`src/client/services/`** | Thin wrappers over repos |
+| **`src/client/repos/`** | HTTP clients to `/api/*` |
+| **`src/server/controllers/`** | Parse request, call services, JSON response |
+| **`src/server/services/`** | Business rules + AIService |
+| **`src/server/database/dao/`** | Supabase data access |
+| **`src/shared/`** | Domain types, public env, browser/SSR Supabase helpers |
 
 ## Setup
 
-1. **Install**
-
-   ```bash
-   npm install
-   ```
-
-2. **Environment (cloud Supabase — no Docker)**
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Fill from [Supabase](https://supabase.com/dashboard) → **Project Settings → API**:
-
-   | Variable | Where |
-   |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
-   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key |
-   | `SUPABASE_SERVICE_ROLE_KEY` | `service_role` (server only; for seed/admin) |
-   | `OPENAI_API_KEY` | Optional |
-   | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` locally |
-
-3. **Push schema to your Supabase project**
-
-   ```bash
-   npx supabase login
-   npx supabase link --project-ref opsbbycugtvmprytabxb
-   npm run db:push
-   ```
-
-4. **Dev server**
-
-   ```bash
-   npm run dev
-   ```
-
-   Optional offline DB (Docker only if you want it later): `npm run db:start`.
+1. **Install** — `npm install`
+2. **Env** — `cp .env.example .env.local` and fill Supabase URL + publishable key (+ service role for admin/seed)
+3. **Schema** — `npx supabase link --project-ref <ref> && npm run db:push`
+4. **Dev** — `npm run dev`
 
 ## Layout
 
 ```
 src/
-  app/                    # Next.js routes (landing, portals)
+  app/
+    api/                  # HTTP routes (marketplace, matching, submissions, …)
+    candidate|company|admin/
   client/
-    views/                # presentational UI
-    viewmodels/           # hooks → server actions
-    components/           # UI primitives
+    views/
+    viewmodels/
+    services/             # → repos
+    repos/                # fetch /api/*
   server/
-    models/               # re-exports shared domain types
-    repositories/         # Supabase data access
-    services/             # business rules + AIService
-    actions/              # server actions
-    lib/supabase/admin.ts # service-role client only
+    controllers/
+    services/
+    database/dao/
+    lib/supabase/admin.ts
   shared/
-    models/               # domain types (CONTEXT.md)
-    constants/
-    env.ts                # public env helpers
-    supabase/             # browser + SSR clients + session helper
-supabase/migrations/      # Postgres schema + RLS stubs
+supabase/migrations/
 ```
+
+## API stubs
+
+| Method | Path |
+|---|---|
+| GET | `/api/marketplace?candidateId=` |
+| GET | `/api/projects/[id]` |
+| GET | `/api/matching/recommendations?candidateId=` |
+| POST | `/api/submissions` |
+| GET | `/api/review/[submissionId]` |
+| POST | `/api/shortlist` |
 
 ## Scripts
 
@@ -106,7 +92,4 @@ supabase/migrations/      # Postgres schema + RLS stubs
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
 | `npm run db:push` | Push migrations to linked remote Supabase |
-| `npm run db:start` | Optional local Supabase stack (needs Docker) |
-| `npm run db:stop` | Stop optional local stack |
-| `npm run db:status` | Print local URL + keys (if Docker stack is running) |
-| `npm run db:reset` | Reset optional local DB |
+| `npm run db:start` | Optional local Supabase (Docker) |
