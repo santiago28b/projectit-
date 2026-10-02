@@ -111,3 +111,36 @@ describe("reading uploads", () => {
     expect(res.status).toBe(416);
   });
 });
+
+describe("Walkthrough length", () => {
+  const files = () => readdirSync(path.join(root, "uploads"));
+
+  it("keeps a Walkthrough of 2 minutes or less", async () => {
+    const url = await saveUpload(video(), "walkthrough", async () => 118);
+    expect(files()).toContain(nameOf(url));
+  });
+
+  it("rejects and deletes a Walkthrough over 2:10", async () => {
+    const before = files().length;
+    await expect(saveUpload(video(), "walkthrough", async () => 185)).rejects.toThrow(
+      "Your Walkthrough is 3:05 long. Keep it to 2 minutes or less.",
+    );
+    expect(files()).toHaveLength(before);
+  });
+
+  it("keeps the upload when the length can't be read (the browser already checked)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unreadable = saveUpload(video(), "walkthrough", async () => null);
+    await expect(unreadable).resolves.toMatch(/\.mp4$/);
+    const broken = saveUpload(video(), "walkthrough", async () => {
+      throw new Error("ffmpeg not found");
+    });
+    await expect(broken).resolves.toMatch(/\.mp4$/);
+  });
+
+  it("doesn't check the length of other files", async () => {
+    const probe = vi.fn(async () => 999);
+    await saveUpload(new File(["%PDF"], "a.pdf", { type: "application/pdf" }), "file", probe);
+    expect(probe).not.toHaveBeenCalled();
+  });
+});

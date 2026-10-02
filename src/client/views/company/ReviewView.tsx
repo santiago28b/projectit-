@@ -14,6 +14,7 @@ import {
   FileText,
   GitBranch,
   LoaderCircle,
+  RotateCcw,
   Save,
   Sparkles,
   Video,
@@ -134,6 +135,36 @@ function Walkthrough({ url }: { url: string }) {
   );
 }
 
+/** Where the AI Assessment is: running, failed (with Retry), or nothing when done. */
+function AssessmentBanner({ model }: { model: ViewModel }) {
+  const submission = model.data!.submission;
+  if (model.assessmentTookTooLong)
+    return (
+      <p role="status" className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        The AI Assessment is taking longer than usual. Refresh the page to check again.
+      </p>
+    );
+  if (model.assessing)
+    return (
+      <p role="status" className="mt-3 flex items-center gap-2 rounded-md border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">
+        <LoaderCircle size={16} className="animate-spin" />
+        AI still assessing the code and Walkthrough…
+      </p>
+    );
+  if (submission.assessmentStatus === "failed")
+    return (
+      <div role="alert" className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="font-medium">AI Assessment unavailable</p>
+        {submission.assessmentError && <p className="mt-1 text-xs">{submission.assessmentError}</p>}
+        <button className={`${buttonClass} mt-3`} disabled={model.busy} onClick={() => void model.retryAssessment()}>
+          <RotateCcw size={16} />
+          Retry
+        </button>
+      </div>
+    );
+  return null;
+}
+
 function Workspace({ model }: { model: ViewModel }) {
   const data = model.data!;
   const [criterionIndex, setCriterionIndex] = useState(0);
@@ -231,6 +262,18 @@ function Workspace({ model }: { model: ViewModel }) {
               Walkthrough
             </h2>
             <Walkthrough url={data.submission.videoUrl} />
+            {data.submission.transcript ? (
+              <details className="mt-3 rounded-md border border-zinc-200 p-3">
+                <summary className="cursor-pointer text-sm font-medium">Transcript</summary>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-700">
+                  {data.submission.transcript}
+                </p>
+              </details>
+            ) : (
+              data.submission.assessmentStatus === "done" && (
+                <p className="mt-3 text-xs text-zinc-500">No Transcript for this Walkthrough.</p>
+              )
+            )}
           </section>
           <section aria-labelledby="deliverables-title">
             <h2 id="deliverables-title" className="text-base font-semibold">
@@ -300,6 +343,7 @@ function Workspace({ model }: { model: ViewModel }) {
               </h2>
               <span className="text-xs text-zinc-500">This Submission</span>
             </div>
+            <AssessmentBanner model={model} />
             <div className="mt-2 divide-y divide-zinc-200">
               {data.evidence.map((entry) => (
                 <div key={entry.skill} className="py-4">

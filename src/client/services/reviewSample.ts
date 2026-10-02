@@ -18,6 +18,11 @@ const sample: ReviewScreenData = {
       "Which boundary case would you test next, and why?",
       "How would your approach change if delivery updates arrived in real time?",
     ],
+    transcript:
+      "The deliveries went missing because an older response could land after a newer one and overwrite it. I split the request lifecycle out of the filtering so each piece is testable, and I chose to refresh status from the API instead of updating optimistically, because dispatchers care more about accuracy than speed.",
+    assessmentStatus: "done",
+    assessedAt: timestamp,
+    assessmentError: null,
     submittedAt: timestamp,
     ...dates,
   },

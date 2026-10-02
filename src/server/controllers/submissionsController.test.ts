@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { runInBackground } from "@/server/lib/background";
 import { getCurrentCandidate } from "@/server/lib/currentUser";
+import { assessmentService } from "@/server/services/assessment";
 import { SubmissionError, submissionsService } from "@/server/services/submissions";
 import type { Candidate } from "@/shared/models/domain";
 
@@ -9,6 +11,8 @@ import { submissionsController } from "./submissionsController";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/lib/currentUser", () => ({ getCurrentCandidate: vi.fn() }));
+vi.mock("@/server/lib/background", () => ({ runInBackground: vi.fn() }));
+vi.mock("@/server/services/assessment", () => ({ assessmentService: { run: vi.fn(async () => {}) } }));
 vi.mock("@/server/database/dao", () => ({ projectsDao: {}, submissionsDao: {} }));
 vi.mock("@/server/lib/db", () => ({ db: {} }));
 vi.mock("@/server/lib/supabase/admin", () => ({
@@ -71,6 +75,24 @@ describe("POST /api/submissions", () => {
     expect(candidate).toBe(maria);
     expect(input).not.toHaveProperty("candidateId");
     expect(input.fileUrls).toEqual(["https://example.com/a.pdf"]);
+  });
+
+  it("starts the Assessment in the background after saving", async () => {
+    vi.mocked(runInBackground).mockClear();
+    vi.mocked(submissionsService.submit).mockResolvedValue({ id: submissionId } as never);
+    await submissionsController.create(post({ projectId, writtenResponse: "x", videoUrl: "https://example.com/v.mp4" }));
+    expect(runInBackground).toHaveBeenCalledTimes(1);
+    await vi.mocked(runInBackground).mock.calls[0][0]();
+    expect(assessmentService.run).toHaveBeenCalledWith(submissionId);
+  });
+
+  it("doesn't start an Assessment when the submit is rejected", async () => {
+    vi.mocked(runInBackground).mockClear();
+    vi.mocked(submissionsService.submit).mockImplementation(async () => {
+      throw new SubmissionError("You've already submitted to this Project", 409);
+    });
+    await submissionsController.create(post({ projectId }));
+    expect(runInBackground).not.toHaveBeenCalled();
   });
 
   it.each([400, 403, 404, 409] as const)("passes a rule's %i status through with its message", async (status) => {

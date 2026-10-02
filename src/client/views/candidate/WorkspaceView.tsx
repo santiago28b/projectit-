@@ -162,7 +162,7 @@ export function WorkspaceView({ projectId }: { projectId: string }) {
                 Walkthrough video <span className="text-red-700">*</span>
               </p>
               <p className="text-sm text-zinc-700">
-                Record 2–5 minutes explaining your work. Cover:
+                Record up to 2 minutes explaining your work. Cover:
               </p>
               <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-700">
                 {WALKTHROUGH_PROMPTS.map((prompt) => (
@@ -214,8 +214,14 @@ export function WorkspaceView({ projectId }: { projectId: string }) {
                       Use link
                     </Button>
                   </div>
+                  <p className="text-xs text-zinc-500">
+                    Uploaded videos are transcribed so your explanation counts. Links can&apos;t be.
+                  </p>
                 </div>
               )}
+              <p className="text-xs text-zinc-600">
+                Your Walkthrough will be transcribed and assessed by AI. A person makes every hiring decision.
+              </p>
             </fieldset>
 
             {vm.error && (
@@ -230,7 +236,7 @@ export function WorkspaceView({ projectId }: { projectId: string }) {
               disabled={!vm.canSubmit}
               className="w-full bg-candidate text-white hover:bg-candidate/90"
             >
-              {vm.submitting ? "Submitting and assessing…" : "Submit Project"}
+              {vm.submitting ? "Submitting…" : "Submit Project"}
             </Button>
             {!vm.walkthrough && (
               <p className="text-center text-xs text-zinc-500">

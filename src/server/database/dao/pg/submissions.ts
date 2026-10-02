@@ -1,12 +1,7 @@
 import "server-only";
 
 import { db } from "@/server/lib/db";
-import type {
-  Evidence,
-  EvidenceLevel,
-  Project,
-  Submission,
-} from "@/shared/models/domain";
+import type { Evidence, Project, Submission } from "@/shared/models/domain";
 import type { MySubmissionSummary } from "@/shared/models/projects";
 
 import { domainRow } from "../mappers";
@@ -18,8 +13,6 @@ export interface NewSubmission {
   repositoryUrl: string | null;
   fileUrls: string[];
   videoUrl: string;
-  followUpQuestions: string[];
-  evidence: { skill: string; level: EvidenceLevel; rationale: string }[];
 }
 
 export const pgSubmissionsDao = {
@@ -40,39 +33,27 @@ export const pgSubmissionsDao = {
   },
 
   /**
-   * The Submission plus one AI-assessed Evidence row per skill, in one
-   * transaction. A second Submission to the same Project fails on the
-   * unique (project_id, candidate_id) constraint with code 23505.
+   * Save a new Submission with its Assessment pending (Evidence comes from the
+   * background Assessment). A second Submission to the same Project fails on
+   * the unique (project_id, candidate_id) constraint with code 23505.
    */
-  async createWithEvidence(input: NewSubmission): Promise<Submission> {
-    return db.transaction(async (client) => {
-      const { rows } = await client.query<Record<string, unknown>>(
-        `insert into public.submissions (
-           project_id, candidate_id, written_response, repository_url,
-           file_urls, video_url, follow_up_questions
-         ) values ($1, $2, $3, $4, $5, $6, $7)
-         returning *`,
-        [
-          input.projectId,
-          input.candidateId,
-          input.writtenResponse,
-          input.repositoryUrl,
-          input.fileUrls,
-          input.videoUrl,
-          input.followUpQuestions,
-        ],
-      );
-      const submission = domainRow<Submission>(rows[0]);
-      for (const item of input.evidence) {
-        await client.query(
-          `insert into public.evidence (
-             candidate_id, submission_id, skill, level, source, rationale
-           ) values ($1, $2, $3, $4, 'ai', $5)`,
-          [input.candidateId, submission.id, item.skill, item.level, item.rationale],
-        );
-      }
-      return submission;
-    });
+  async create(input: NewSubmission): Promise<Submission> {
+    const { rows } = await db.query<Record<string, unknown>>(
+      `insert into public.submissions (
+         project_id, candidate_id, written_response, repository_url,
+         file_urls, video_url, assessment_status
+       ) values ($1, $2, $3, $4, $5, $6, 'pending')
+       returning *`,
+      [
+        input.projectId,
+        input.candidateId,
+        input.writtenResponse,
+        input.repositoryUrl,
+        input.fileUrls,
+        input.videoUrl,
+      ],
+    );
+    return domainRow<Submission>(rows[0]);
   },
 
   async listMine(candidateId: string): Promise<MySubmissionSummary[]> {

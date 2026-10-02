@@ -343,3 +343,29 @@ insert into public.evaluations (submission_id, reviewer_id, rubric_results, note
 insert into public.shortlists (company_id, candidate_id, job_id, submission_id) values
   ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000302',
    '00000000-0000-0000-0000-000000000501', '00000000-0000-0000-0000-000000000601');
+
+-- Walkthrough Transcripts for the Broken Delivery Tracker Submissions, and their
+-- Communication Evidence. Seeded Submissions were assessed before the demo, so
+-- they're marked done; only new Submissions run the real Assessment.
+update public.submissions set transcript =
+  'Hi, I''m Dev. Two bugs. First, Delivered showed up early because the ETA came back as a string and we compared it to the current time as text, so the comparison was alphabetical. I parse both into Dates and moved the status rule into a pure function, which made it easy to test. Second, the blank list was a race: if the first request was slow it overwrote the newer one. I cancel the stale request with AbortController instead of tracking request IDs, because it also stops wasted work. I added unit tests for the status function and one that returns responses out of order. If I had more time I''d handle drivers whose phone clocks are wrong.'
+  where id = '00000000-0000-0000-0000-000000000601';
+
+update public.submissions set transcript =
+  'So the list went blank sometimes, and I figured out it was two fetches finishing in the wrong order, so I keep track of the latest request and ignore older ones. The Delivered label was wrong because of the date, so I convert the ETA to a Date now. I also added a test for the race condition. That''s about it.'
+  where id = '00000000-0000-0000-0000-000000000602';
+
+update public.submissions set transcript =
+  'I got the app running. The status label was wrong and I tried changing a few things in the component but I couldn''t figure out why. I think it might be the API.'
+  where id = '00000000-0000-0000-0000-000000000603';
+
+update public.submissions
+  set assessment_status = 'done', assessed_at = submitted_at + interval '1 minute';
+
+insert into public.evidence (candidate_id, submission_id, skill, level, source, rationale) values
+  ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000601', 'Communication', 'strong', 'ai',
+   'Transcript: explains both root causes, why AbortController over request IDs, and what they would do next; matches the code and tests.'),
+  ('00000000-0000-0000-0000-000000000303', '00000000-0000-0000-0000-000000000602', 'Communication', 'partial', 'ai',
+   'Transcript: describes the fixes but not the reasoning. It says a race-condition test was added, but the written explanation says there was no time for tests.'),
+  ('00000000-0000-0000-0000-000000000304', '00000000-0000-0000-0000-000000000603', 'Communication', 'partial', 'ai',
+   'Transcript: honest about what was tried, but doesn''t explain an approach or a next step.');

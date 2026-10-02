@@ -14,6 +14,14 @@ export type JobStatus = "open" | "closed";
 
 export type SubmissionStatus = "submitted" | "under_review" | "completed";
 
+/** Progress of the AI's background Assessment (separate from the human review). */
+export type AssessmentStatus = "pending" | "running" | "done" | "failed";
+
+/** The background Assessment hasn't finished yet. */
+export function isAssessing(status: AssessmentStatus | undefined): boolean {
+  return status === "pending" || status === "running";
+}
+
 export type EvidenceLevel =
   | "strong"
   | "partial"
@@ -125,6 +133,12 @@ export interface Submission {
   videoUrl: string;
   followUpQuestions: string[];
   status: SubmissionStatus;
+  /** What the Candidate says in their Walkthrough, once transcribed. */
+  transcript: string | null;
+  assessmentStatus: AssessmentStatus;
+  assessedAt: string | null;
+  /** Short, reviewer-safe reason the last Assessment failed. */
+  assessmentError: string | null;
   submittedAt: string;
   createdAt: string;
   updatedAt: string;

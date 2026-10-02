@@ -26,6 +26,13 @@ export const reviewRepo = {
     }).then((data) => data.submissions);
   },
 
+  /** Put a failed Assessment back in the queue (it runs in the background). */
+  retryAssessment(submissionId: string) {
+    return apiFetch<{ assessmentStatus: "pending" }>(`/api/submissions/${submissionId}/assessment`, {
+      method: "POST",
+    });
+  },
+
   getReviewScreen(submissionId: string, signal?: AbortSignal) {
     return apiFetch<ReviewScreenResponse>(`/api/review/${submissionId}`, {
       cache: "no-store",

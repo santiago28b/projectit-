@@ -1,12 +1,5 @@
 import { submissionsDao } from "@/server/database/dao";
 import type { SubmissionsDao } from "@/server/database/dao/pg/submissions";
-import {
-  aiService,
-  mockEvaluateSubmission,
-  type AIService,
-  type EvaluateSubmissionInput,
-  type SubmissionEvaluationResult,
-} from "@/server/services/ai";
 import { projectsService, type ProjectsService } from "@/server/services/projects";
 import type { Candidate, Submission } from "@/server/models/domain";
 import type {
@@ -14,7 +7,7 @@ import type {
   MySubmissionView,
   SubmitProjectInput,
 } from "@/shared/models/projects";
-import { effectiveEvidence, evidenceLevels, safeExternalUrl } from "@/shared/models/review";
+import { effectiveEvidence, safeExternalUrl } from "@/shared/models/review";
 
 /** A rule broke; `status` is the HTTP status the controller should send. */
 export class SubmissionError extends Error {
@@ -28,7 +21,6 @@ export class SubmissionError extends Error {
 
 const MAX_WRITTEN = 10_000;
 const MAX_FILES = 10;
-const AI_TIMEOUT_MS = 30_000;
 
 function validate(input: SubmitProjectInput) {
   const videoUrl = safeExternalUrl(input.videoUrl?.trim() || null);
@@ -52,60 +44,18 @@ function validate(input: SubmitProjectInput) {
   return { videoUrl, writtenResponse, repositoryUrl, fileUrls: fileUrls as string[] };
 }
 
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("AI evaluation timed out")), ms);
-  });
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
- * One Evidence entry per Project skill, using the Project's spelling. Skills
- * the AI skipped (or levels it made up) become `not_assessed`.
- */
-function evidenceForSkills(
-  skills: string[],
-  result: SubmissionEvaluationResult,
-): SubmissionEvaluationResult["evidence"] {
-  return skills.map((skill) => {
-    const found = result.evidence.find(
-      (e) => e.skill.trim().toLowerCase() === skill.trim().toLowerCase(),
-    );
-    return found && evidenceLevels.includes(found.level)
-      ? { skill, level: found.level, rationale: found.rationale }
-      : { skill, level: "not_assessed", rationale: "" };
-  });
-}
-
 export function createSubmissionsService(deps: {
   dao: SubmissionsDao;
-  ai: AIService;
   projects: Pick<ProjectsService, "canStart">;
   now?: () => Date;
 }) {
   const now = deps.now ?? (() => new Date());
 
-  /** The live AI, or the mock if it fails, times out, or returns nothing usable. */
-  async function evaluate(input: EvaluateSubmissionInput) {
-    try {
-      const result = await withTimeout(deps.ai.evaluateSubmission(input), AI_TIMEOUT_MS);
-      if (result.evidence.length > 0) return result;
-    } catch (err) {
-      console.warn("evaluateSubmission failed; using mock:", err);
-    }
-    return mockEvaluateSubmission(input);
-  }
-
   return {
     /**
      * Submit work: Walkthrough required, one Submission per Project, only for
-     * Projects the Candidate can see, before the deadline. Writes AI-assessed
-     * Evidence per skill and follow-up questions with the Submission.
+     * Projects the Candidate can see, before the deadline. Saved with its
+     * Assessment pending; the caller starts the background Assessment.
      */
     async submit(candidate: Candidate, input: SubmitProjectInput): Promise<Submission> {
       const clean = validate(input);
@@ -119,21 +69,11 @@ export function createSubmissionsService(deps: {
       if (await deps.dao.findId(project.id, candidate.id))
         throw new SubmissionError("You've already submitted to this Project", 409);
 
-      const result = await evaluate({
-        projectTitle: project.title,
-        scenario: project.scenario,
-        projectSkills: project.skills,
-        writtenResponse: clean.writtenResponse,
-        repositoryUrl: clean.repositoryUrl ?? undefined,
-      });
-
       try {
-        return await deps.dao.createWithEvidence({
+        return await deps.dao.create({
           projectId: project.id,
           candidateId: candidate.id,
           ...clean,
-          followUpQuestions: result.followUpQuestions.slice(0, 5),
-          evidence: evidenceForSkills(project.skills, result),
         });
       } catch (err) {
         // Two submits at once: the unique constraint is the real guard.
@@ -170,6 +110,5 @@ export type SubmissionsService = ReturnType<typeof createSubmissionsService>;
 
 export const submissionsService = createSubmissionsService({
   dao: submissionsDao,
-  ai: aiService,
   projects: projectsService,
 });

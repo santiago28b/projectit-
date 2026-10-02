@@ -4,6 +4,7 @@ import {
   claudeGenerateProject,
   claudeIdeasFromJob,
 } from "@/server/services/claudeProjectGenerator";
+import type { RepoSnapshot } from "@/server/services/repoReader";
 import { SEED_SKILLS } from "@/shared/constants/seedIds";
 import type {
   ExtractedSkills,
@@ -26,10 +27,22 @@ export type {
 export interface EvaluateSubmissionInput {
   projectTitle: string;
   scenario: string;
+  /** The Project's skills; the Assessment adds Communication. */
   projectSkills: string[];
   writtenResponse: string;
   repositoryUrl?: string;
+  /** What the Candidate said in their Walkthrough, if it could be transcribed. */
+  transcript?: string | null;
+  /** Why there's no Transcript (shown to the AI so it doesn't guess). */
+  transcriptNote?: string;
+  /** README, file list and a few files from the repository, if it could be read. */
+  repo?: RepoSnapshot | null;
+  /** Why the code isn't available. */
+  repoNote?: string;
 }
+
+/** Every Submission gets Communication Evidence from its Walkthrough. */
+export const COMMUNICATION_SKILL = "Communication";
 
 /** Words that show a skill was used, beyond the skill's own name. */
 const SKILL_TERMS: Record<string, string[]> = {
@@ -95,16 +108,38 @@ function snippet(sentence: string): string {
   return clean.length > 90 ? `${clean.slice(0, 87)}…` : clean;
 }
 
-/** Deterministic stand-in for the AI: reads the written explanation only. */
+/** Communication from the Transcript alone: how much it explains, never how it sounds. */
+function mockCommunication(transcript: string | null | undefined) {
+  const skill = COMMUNICATION_SKILL;
+  if (!transcript?.trim())
+    return { skill, level: "not_assessed" as const, rationale: "No Walkthrough Transcript was available." };
+  const words = transcript.trim().split(/\s+/).length;
+  if (words >= 60 && REASONING_PATTERN.test(transcript))
+    return {
+      skill,
+      level: "strong" as const,
+      rationale: "The Walkthrough Transcript explains the approach and the reasons behind the decisions.",
+    };
+  return {
+    skill,
+    level: "partial" as const,
+    rationale: "The Walkthrough Transcript describes the work but says little about why it was done that way.",
+  };
+}
+
+/** Deterministic stand-in for the AI: reads the written explanation and Transcript. */
 export function mockEvaluateSubmission(
   input: EvaluateSubmissionInput,
 ): SubmissionEvaluationResult {
-  const sentences = input.writtenResponse
+  const sentences = [input.writtenResponse, input.transcript ?? ""]
+    .join("\n")
     .split(/(?<=[.!?])\s+|\n+/)
     .map((s) => s.trim())
     .filter(Boolean);
 
   const evidence = input.projectSkills.map((skill) => {
+    if (skill.trim().toLowerCase() === COMMUNICATION_SKILL.toLowerCase())
+      return mockCommunication(input.transcript);
     const pattern = patternFor(skill);
     const mentions = sentences.filter((s) => pattern.test(s));
     const reasoned = mentions.find((s) => REASONING_PATTERN.test(s));

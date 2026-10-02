@@ -199,3 +199,26 @@ describe("explainMatch with Claude", () => {
     expect(reasons[0]).toBe("Overlaps on React");
   });
 });
+
+describe("mock Communication Evidence", () => {
+  it("is not assessed without a Transcript, and judged from the Transcript when there is one", async () => {
+    const { mockEvaluateSubmission } = await import("./ai");
+    const base = { projectTitle: "P", scenario: "S", projectSkills: ["Communication"], writtenResponse: "Fixed it." };
+    expect(mockEvaluateSubmission({ ...base, transcript: null }).evidence[0].level).toBe("not_assessed");
+    expect(mockEvaluateSubmission({ ...base, transcript: "I changed the label." }).evidence[0].level).toBe("partial");
+    const long = `${"I walked through the code and the data flow step by step. ".repeat(8)}I chose AbortController because stale responses overwrote new ones.`;
+    expect(mockEvaluateSubmission({ ...base, transcript: long }).evidence[0].level).toBe("strong");
+  });
+
+  it("uses the Transcript as Evidence for technical skills too", async () => {
+    const { mockEvaluateSubmission } = await import("./ai");
+    const result = mockEvaluateSubmission({
+      projectTitle: "P",
+      scenario: "S",
+      projectSkills: ["Testing"],
+      writtenResponse: "Fixed the status label.",
+      transcript: "I added a regression test because the bug came back twice.",
+    });
+    expect(result.evidence[0].level).toBe("strong");
+  });
+});

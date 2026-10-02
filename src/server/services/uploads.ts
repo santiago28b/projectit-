@@ -2,11 +2,13 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 
 import { env } from "@/server/lib/env";
+import { probeDurationSeconds } from "@/server/services/transcription";
+import { checkWalkthroughDuration } from "@/shared/models/walkthrough";
 
 /**
  * Local-disk storage for Walkthroughs and deliverable files (dev/demo only;
@@ -43,6 +45,35 @@ const INLINE_TYPES: Record<string, string> = {
 
 export class UploadError extends Error {}
 
+/** Where a stored upload lives on disk (name already validated by the caller). */
+export function uploadPath(name: string): string {
+  return path.join(UPLOAD_DIR, name);
+}
+
+/**
+ * Server-side Walkthrough length check (the browser checks first, but that can
+ * be skipped). If ffmpeg can't read the length, the upload is kept and the
+ * browser's check stands.
+ */
+async function enforceWalkthroughLength(
+  filePath: string,
+  probe: (filePath: string) => Promise<number | null>,
+): Promise<void> {
+  let seconds: number | null;
+  try {
+    seconds = await probe(filePath);
+  } catch (err) {
+    console.warn("[uploads] couldn't read Walkthrough length:", err instanceof Error ? err.message : err);
+    return;
+  }
+  if (seconds === null) return;
+  const check = checkWalkthroughDuration(seconds);
+  if (!check.ok) {
+    await unlink(filePath).catch(() => {});
+    throw new UploadError(check.message);
+  }
+}
+
 function extensionFor(file: File, kind: UploadKind): string {
   if (kind === "walkthrough") {
     const ext = VIDEO_TYPES[file.type];
@@ -54,14 +85,20 @@ function extensionFor(file: File, kind: UploadKind): string {
 }
 
 /** Save an upload and return its absolute URL. */
-export async function saveUpload(file: File, kind: UploadKind): Promise<string> {
+export async function saveUpload(
+  file: File,
+  kind: UploadKind,
+  probe: (filePath: string) => Promise<number | null> = probeDurationSeconds,
+): Promise<string> {
   if (file.size === 0) throw new UploadError("The file is empty");
   if (file.size > LIMITS[kind])
     throw new UploadError(`File is larger than ${LIMITS[kind] / MB}MB`);
 
   const name = `${randomUUID()}.${extensionFor(file, kind)}`;
   await mkdir(UPLOAD_DIR, { recursive: true });
-  await writeFile(path.join(UPLOAD_DIR, name), Buffer.from(await file.arrayBuffer()));
+  const filePath = path.join(UPLOAD_DIR, name);
+  await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
+  if (kind === "walkthrough") await enforceWalkthroughLength(filePath, probe);
   return `${env.appUrl}/api/uploads/${name}`;
 }
 
