@@ -8,7 +8,10 @@ import type {
   Job,
   Project,
 } from "@/shared/models/domain";
-import type { CompanyProjectLink } from "@/server/services/rules";
+import type {
+  CompanyProjectLink,
+  CompletedProject,
+} from "@/server/services/rules";
 
 import {
   type Row,
@@ -151,6 +154,42 @@ export const pgMatchingRepository = {
       out[r.id] = { id: r.project_id, title: r.title };
     }
     return out;
+  },
+
+  async listCompletedProjectsForCandidates(
+    candidateIds: string[],
+  ): Promise<CompletedProject[]> {
+    if (candidateIds.length === 0) return [];
+    const { rows } = await db.query<{
+      candidate_id: string;
+      type: Project["type"];
+      expected_duration_minutes: number | null;
+    }>(
+      `select s.candidate_id, p.type, p.expected_duration_minutes
+       from public.submissions s
+       join public.projects p on p.id = s.project_id
+       where s.candidate_id = any($1::uuid[])`,
+      [candidateIds],
+    );
+    return rows.map((r) => ({
+      candidateId: r.candidate_id,
+      projectType: r.type,
+      expectedDurationMinutes: r.expected_duration_minutes,
+    }));
+  },
+
+  /** Shortlisted by this Company for this Job, or with no Job attached. */
+  async listShortlistedCandidateIds(
+    companyId: string,
+    jobId: string,
+  ): Promise<string[]> {
+    const { rows } = await db.query<{ candidate_id: string }>(
+      `select distinct candidate_id
+       from public.shortlists
+       where company_id = $1 and (job_id = $2 or job_id is null)`,
+      [companyId, jobId],
+    );
+    return rows.map((r) => r.candidate_id);
   },
 
   async listCompanyProjectLinks(

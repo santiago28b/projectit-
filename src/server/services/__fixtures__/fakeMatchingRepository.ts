@@ -18,6 +18,9 @@ export interface FakeData {
   /** candidateId → invited projectIds */
   invitations?: Record<string, string[]>;
   links?: CompanyProjectLink[];
+  /** submissionId → candidateId (who completed it) */
+  submissionOwners?: Record<string, string>;
+  shortlists?: { companyId: string; candidateId: string; jobId: string | null }[];
 }
 
 /** In-memory MatchingRepository for service tests. Mutations are visible via `data`. */
@@ -30,6 +33,8 @@ export function fakeMatchingRepository(input: FakeData = {}) {
     submissions: input.submissions ?? {},
     invitations: input.invitations ?? {},
     links: input.links ?? [],
+    submissionOwners: input.submissionOwners ?? {},
+    shortlists: input.shortlists ?? [],
   };
   let nextId = 1;
 
@@ -80,6 +85,22 @@ export function fakeMatchingRepository(input: FakeData = {}) {
         if (project) out[id] = { id: project.id, title: project.title };
       }
       return out;
+    },
+    async listCompletedProjectsForCandidates(ids) {
+      return Object.entries(data.submissionOwners).flatMap(([submissionId, candidateId]) => {
+        const project = data.projects.find((p) => p.id === data.submissions[submissionId]);
+        if (!project || !ids.includes(candidateId)) return [];
+        return [{
+          candidateId,
+          projectType: project.type,
+          expectedDurationMinutes: project.expectedDurationMinutes,
+        }];
+      });
+    },
+    async listShortlistedCandidateIds(companyId, jobId) {
+      return data.shortlists
+        .filter((s) => s.companyId === companyId && (s.jobId === jobId || s.jobId === null))
+        .map((s) => s.candidateId);
     },
     async listCompanyProjectLinks(companyId) {
       return data.links.filter((l) => l.companyId === companyId);

@@ -1,6 +1,6 @@
 import { matchingRepo } from "@/client/repos/matchingRepo";
 
-export type { JobOverview, RecommendedProject } from "@/client/repos/matchingRepo";
+export type { JobOverview, RecommendedProject, TrackRecord } from "@/client/repos/matchingRepo";
 
 export const matchingService = {
   recommendForCandidate(signal?: AbortSignal) {

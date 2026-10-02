@@ -37,6 +37,44 @@ export interface CompanyProjectLink {
 export interface CandidateWithProfile {
   candidate: Candidate;
   profile: EvidenceProfileEntry[];
+  /** Submissions made; more completed Projects rank higher among Candidates who fit. */
+  projectsCompleted?: number;
+}
+
+/** One Project a Candidate has submitted to. */
+export interface CompletedProject {
+  candidateId: string;
+  projectType: Project["type"];
+  expectedDurationMinutes: number | null;
+}
+
+/** How much work a Candidate has done on Project It. */
+export interface TrackRecord {
+  projectsCompleted: number;
+  /** Sum of the Projects' expected durations (actual time isn't tracked). */
+  minutesCompleted: number;
+  companyProjectsCompleted: number;
+}
+
+/** Track record per Candidate; Candidates with no Submissions get zeros. */
+export function summarizeTrackRecords(
+  candidateIds: string[],
+  completed: CompletedProject[],
+): Map<string, TrackRecord> {
+  const out = new Map<string, TrackRecord>(
+    candidateIds.map((id) => [
+      id,
+      { projectsCompleted: 0, minutesCompleted: 0, companyProjectsCompleted: 0 },
+    ]),
+  );
+  for (const c of completed) {
+    const record = out.get(c.candidateId);
+    if (!record) continue;
+    record.projectsCompleted += 1;
+    record.minutesCompleted += c.expectedDurationMinutes ?? 0;
+    if (c.projectType === "company") record.companyProjectsCompleted += 1;
+  }
+  return out;
 }
 
 /** strong > partial > not_shown > not_assessed */
@@ -53,6 +91,8 @@ const EVIDENCE_POINTS: Partial<Record<EvidenceLevel, number>> = {
   partial: 2,
 };
 const PROFILE_ONLY_POINTS = 1;
+/** Bonus per completed Project when ranking Candidates for a Job. */
+const COMPLETED_PROJECT_POINTS = 2;
 
 const LEVEL_LABEL: Record<EvidenceLevel, string> = {
   strong: "Strong",
@@ -211,7 +251,10 @@ export function rankProjectsForCandidate(
   );
 }
 
-/** Required skills count double vs preferred. Drops zero-fit. */
+/**
+ * Required skills count double vs preferred. Drops zero-fit.
+ * Among Candidates who fit, more completed Projects rank higher.
+ */
 export function rankCandidatesForJob(
   job: Job,
   candidates: CandidateWithProfile[],
@@ -223,7 +266,7 @@ export function rankCandidatesForJob(
   ];
 
   return finish(
-    candidates.map(({ candidate, profile }) => {
+    candidates.map(({ candidate, profile, projectsCompleted = 0 }) => {
       const profileBySkill = indexProfile(profile);
       const profileSkills = new Set(candidate.skills.map(norm));
       let score = 0;
@@ -240,6 +283,8 @@ export function rankCandidatesForJob(
       if (fromProfile.length > 0) {
         reasons.push(`Lists ${fromProfile.join(", ")} on profile (no Evidence yet)`);
       }
+      // Experience only boosts Candidates who already fit; it never adds a no-fit one.
+      if (score > 0) score += projectsCompleted * COMPLETED_PROJECT_POINTS;
       return { item: candidate, score, reasons, label: candidate.id };
     }),
   );
