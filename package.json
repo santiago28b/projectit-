@@ -11,7 +11,10 @@
     "db:stop": "npx supabase stop",
     "db:status": "npx supabase status",
     "db:reset": "npx supabase db reset",
-    "db:push": "npx supabase db push"
+    "db:push": "npx supabase db push",
+    "deploy:staging": "bash scripts/deploy_staging.sh",
+    "publish:staging": "bash scripts/publish_staging.sh",
+    "ssh:ec2": "bash scripts/ssh_into_ec2.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

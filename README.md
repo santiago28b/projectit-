@@ -17,7 +17,24 @@ Domain language: [`CONTEXT.md`](CONTEXT.md). Decisions: [`docs/adr/`](docs/adr/)
 | Environment | What runs where |
 |---|---|
 | **Local** | `npm run dev` → remote Supabase (`.env.local`) |
-| **Staging / Prod** | Deployed Next.js → Supabase (host env vars) |
+| **Staging** | EC2 + PM2 at [project-it.samirrodriguez.click](https://project-it.samirrodriguez.click) → same Supabase |
+| **Prod** | Deployed Next.js → Supabase (host env vars) |
+
+### Deploy staging (EC2)
+
+Same host/key pattern as Prometheus (`ec2-user` + `prometheus_key.pem`).
+
+```bash
+# One-time on the server: DNS + nginx (scripts/nginx/) + certbot,
+# then create ~/project-it-staging/.env from scripts/env.staging.example
+
+npm run deploy:staging              # lint → optional commit → publish
+npm run deploy:staging -- --no-commit
+npm run publish:staging             # build + scp + pm2 only
+npm run ssh:ec2                     # shell on the box
+```
+
+Override key/host with `EC2_KEY=...` / `EC2_HOST=...` if needed. Remote `.env` is never overwritten by publish.
 
 ## Architecture (Prometheus-style)
 
@@ -93,3 +110,6 @@ supabase/migrations/
 | `npm run lint` | ESLint |
 | `npm run db:push` | Push migrations to linked remote Supabase |
 | `npm run db:start` | Optional local Supabase (Docker) |
+| `npm run deploy:staging` | Lint, optional commit/push, publish to EC2 staging |
+| `npm run publish:staging` | Build standalone + PM2 restart on EC2 |
+| `npm run ssh:ec2` | SSH into the staging EC2 host |
