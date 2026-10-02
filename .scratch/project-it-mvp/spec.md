@@ -1,8 +1,6 @@
----
-status: ready-for-agent
----
-
 # Project It: hackathon MVP
+
+Status: ready-for-agent
 
 ## Problem Statement
 
