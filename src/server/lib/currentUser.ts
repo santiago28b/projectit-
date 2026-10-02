@@ -35,6 +35,11 @@ export async function loadCurrentUser(
   return { user, candidate, company };
 }
 
+/** The Candidate the role switcher picked, or null for Company users / nobody. */
+export async function getCurrentCandidate() {
+  return (await getCurrentUser())?.candidate ?? null;
+}
+
 /** Portal a role lands on after switching. */
 export function homeForRole(role: UserRole): string {
   if (role === "candidate") return "/candidate";
