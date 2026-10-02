@@ -1,6 +1,9 @@
 import "server-only";
 
-import { matchingRepository as repo } from "@/server/repositories/matching";
+import {
+  matchingRepository,
+  type MatchingRepository,
+} from "@/server/repositories/matching";
 import {
   buildEvidenceProfile,
   canViewSubmission,
@@ -48,7 +51,10 @@ export interface MatchingService {
 }
 
 /** Evidence profiles for many Candidates with two queries total. */
-async function profilesFor(candidateIds: string[]): Promise<Map<string, EvidenceProfileEntry[]>> {
+async function profilesFor(
+  repo: MatchingRepository,
+  candidateIds: string[],
+): Promise<Map<string, EvidenceProfileEntry[]>> {
   const evidence = await repo.listEvidenceForCandidates(candidateIds);
   const projectsBySubmission = await repo.projectsBySubmission([
     ...new Set(evidence.map((e) => e.submissionId)),
@@ -68,7 +74,9 @@ async function profilesFor(candidateIds: string[]): Promise<Map<string, Evidence
   return out;
 }
 
-export const matchingService: MatchingService = {
+/** Build the service around a repository (tests pass a fake one). */
+export function createMatchingService(repo: MatchingRepository): MatchingService {
+  const service: MatchingService = {
   async recommendProjectsForCandidate(candidateId) {
     const candidate = await repo.getCandidate(candidateId);
     if (!candidate) return [];
@@ -76,7 +84,7 @@ export const matchingService: MatchingService = {
     const [projects, invited, profiles] = await Promise.all([
       repo.listOpenProjects(),
       repo.listInvitedProjectIds(candidateId),
-      profilesFor([candidateId]),
+      profilesFor(repo, [candidateId]),
     ]);
 
     return rankProjectsForCandidate(
@@ -92,7 +100,7 @@ export const matchingService: MatchingService = {
     if (!job) return [];
 
     const people = await repo.listCandidatesWithNames();
-    const profiles = await profilesFor(people.map((p) => p.candidate.id));
+    const profiles = await profilesFor(repo, people.map((p) => p.candidate.id));
     const nameById = new Map(people.map((p) => [p.candidate.id, p.name]));
 
     const ranked = rankCandidatesForJob(
@@ -125,8 +133,8 @@ export const matchingService: MatchingService = {
     if (!job) return null;
 
     const [candidates, projects, links] = await Promise.all([
-      matchingService.candidatesForJob(jobId),
-      matchingService.projectsForJob(jobId),
+      service.candidatesForJob(jobId),
+      service.projectsForJob(jobId),
       repo.listCompanyProjectLinks(job.companyId),
     ]);
 
@@ -151,3 +159,7 @@ export const matchingService: MatchingService = {
     return repo.listJobsForCompany(companyId);
   },
 };
+  return service;
+}
+
+export const matchingService = createMatchingService(matchingRepository);

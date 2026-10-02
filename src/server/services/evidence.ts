@@ -1,6 +1,9 @@
 import "server-only";
 
-import { matchingRepository as repo } from "@/server/repositories/matching";
+import {
+  matchingRepository,
+  type MatchingRepository,
+} from "@/server/repositories/matching";
 import {
   buildEvidenceProfile,
   type EvidenceProfileEntry,
@@ -28,7 +31,9 @@ export interface EvidenceService {
   listForSubmission(submissionId: string): Promise<Evidence[]>;
 }
 
-export const evidenceService: EvidenceService = {
+/** Build the service around a repository (tests pass a fake one). */
+export function createEvidenceService(repo: MatchingRepository): EvidenceService {
+  return {
   async getProfile(candidateId) {
     const evidence = await repo.listEvidenceForCandidates([candidateId]);
     const projectsBySubmission = await repo.projectsBySubmission([
@@ -57,3 +62,6 @@ export const evidenceService: EvidenceService = {
     return [...bySkill.values()];
   },
 };
+}
+
+export const evidenceService = createEvidenceService(matchingRepository);

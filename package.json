@@ -18,7 +18,8 @@
     "deploy:staging": "bash scripts/deploy_staging.sh",
     "publish:staging": "bash scripts/publish_staging.sh",
     "nginx:staging": "bash scripts/install_nginx_staging.sh",
-    "ssh:ec2": "bash scripts/ssh_into_ec2.sh"
+    "ssh:ec2": "bash scripts/ssh_into_ec2.sh",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -40,6 +41,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
