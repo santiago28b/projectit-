@@ -2,4 +2,4 @@
 -- JSON list: [{ "label": "...", "url": "...", "kind": "starter" | "reference" }]
 
 alter table public.projects
-  add column resources jsonb not null default '[]'::jsonb;
+  add column if not exists resources jsonb not null default '[]'::jsonb;

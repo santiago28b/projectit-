@@ -61,6 +61,10 @@ remote "mkdir -p ${REMOTE_DIR}"
 echo "==> Uploading tarball..."
 remote_scp "/tmp/${TARBALL_NAME}" "${EC2_USER}@${EC2_HOST}:/tmp/${TARBALL_NAME}"
 
+ENSURE_SQL="supabase/migrations/20261002223000_ensure_assessment_schema.sql"
+echo "==> Uploading deploy-safe schema ensure..."
+remote_scp "${ENSURE_SQL}" "${EC2_USER}@${EC2_HOST}:/tmp/project-it-ensure-schema.sql"
+
 echo "==> Extracting on EC2 (preserving remote .env) and restarting PM2..."
 remote bash -s << EOF
 set -euo pipefail
@@ -94,6 +98,13 @@ fi
 set -a
 [[ -f .env ]] && . ./.env
 set +a
+
+# Idempotent schema patch against whatever DATABASE_URL staging uses
+if [[ -n "\${DATABASE_URL:-}" ]] && [[ -f /tmp/project-it-ensure-schema.sql ]]; then
+  echo "==> Applying ensure_assessment_schema.sql"
+  psql "\$DATABASE_URL" -v ON_ERROR_STOP=1 -f /tmp/project-it-ensure-schema.sql
+  rm -f /tmp/project-it-ensure-schema.sql
+fi
 
 export PORT=${APP_PORT}
 export NODE_ENV=production
