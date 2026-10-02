@@ -10,14 +10,17 @@ import "server-only";
 
 import { getDatabaseBackend } from "@/server/lib/databaseBackend";
 
+import type { ProjectsDao } from "./pg/projects";
 import {
   pgCandidatesDao,
   pgCompaniesDao,
+  pgProjectsDao,
   pgUsersDao,
 } from "./pg";
 import {
   supabaseCandidatesDao,
   supabaseCompaniesDao,
+  supabaseProjectsDao,
   supabaseUsersDao,
 } from "./supabase";
 
@@ -32,9 +35,9 @@ export const companiesDao =
 export const candidatesDao =
   backend === "supabase" ? supabaseCandidatesDao : pgCandidatesDao;
 
-// Candidate-flow DAOs are Postgres-only: the team runs local Postgres, and
-// DATABASE_URL can also point at a Supabase connection string.
-export { pgProjectsDao as projectsDao } from "./pg/projects";
+export const projectsDao = (
+  backend === "supabase" ? supabaseProjectsDao : pgProjectsDao
+) as ProjectsDao;
 
 export const submissionsDao = {
   async findByProjectAndCandidate(_projectId: string, _candidateId: string) {

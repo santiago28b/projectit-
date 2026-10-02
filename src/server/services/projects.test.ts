@@ -6,7 +6,15 @@ import type { ProjectCard } from "@/shared/models/projects";
 
 import { createProjectsService } from "./projects";
 
-vi.mock("@/server/database/dao", () => ({ projectsDao: {} }));
+vi.mock("server-only", () => ({}));
+vi.mock("@/server/database/dao", () => ({
+  projectsDao: {},
+  candidatesDao: { findById: async () => null },
+}));
+vi.mock("@/server/lib/db", () => ({ db: {} }));
+vi.mock("@/server/lib/supabase/admin", () => ({
+  createAdminClient: () => ({}),
+}));
 
 const maria: Candidate = {
   id: "maria",
@@ -61,14 +69,14 @@ function fakeDao(options: {
 }): ProjectsDao {
   return {
     listPublishedCards: async () => catalog,
-    findDetail: async (id) => {
+    findDetail: async (id: string) => {
       const found = catalog.find((p) => p.id === id);
       return found ? { ...found, resources: [] } : null;
     },
     rubric: async () => [],
     invitedProjectIds: async () => options.invited ?? [],
     submissionId: async () => options.submissionId ?? null,
-  };
+  } as unknown as ProjectsDao;
 }
 
 describe("Marketplace Visibility", () => {

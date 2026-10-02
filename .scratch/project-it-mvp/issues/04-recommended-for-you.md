@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Evidence profile: strongest level per skill, Company-reviewed overrides AI-assessed, and each entry records its source Project
-- [ ] Ranking is deterministic and works with the AI mocked or down
-- [ ] Each recommendation shows its reasons (e.g. "uses React and APIs; you have strong Debugging Evidence")
-- [ ] Restricted Projects are never recommended to Candidates who aren't eligible
-- [ ] No percentage or score in the UI
-- [ ] Tests: strongest-level rule; override wins; Maria is recommended Broken Delivery Tracker; every Match has reasons; eligibility is respected
+- [x] Evidence profile: strongest level per skill, Company-reviewed overrides AI-assessed, and each entry records its source Project
+- [x] Ranking is deterministic and works with the AI mocked or down
+- [x] Each recommendation shows its reasons (e.g. "uses React and APIs; you have strong Debugging Evidence")
+- [x] Restricted Projects are never recommended to Candidates who aren't eligible
+- [x] No percentage or score in the UI
+- [x] Tests: strongest-level rule; override wins; Maria is recommended Broken Delivery Tracker; every Match has reasons; eligibility is respected
