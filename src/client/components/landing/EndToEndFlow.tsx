@@ -1,11 +1,13 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+
+import { useReducedMotionSafe } from "@/client/lib/useReducedMotionSafe";
 
 import { END_TO_END } from "@/client/components/landing/landingCopy";
 
 export function EndToEndFlow() {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionSafe();
 
   return (
     <section

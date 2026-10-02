@@ -1,6 +1,8 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+
+import { useReducedMotionSafe } from "@/client/lib/useReducedMotionSafe";
 import { useState } from "react";
 
 import { HERO } from "@/client/components/landing/landingCopy";
@@ -20,7 +22,7 @@ export function LandingHero({
   onHiring: () => void;
   onGuest: () => void;
 }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionSafe();
   const [active, setActive] = useState<Side>(null);
 
   const looking = active === "looking";

@@ -1,5 +1,6 @@
 "use client";
 
+import { MotionConfig } from "motion/react";
 import { useRouter } from "next/navigation";
 
 import { EndToEndFlow } from "@/client/components/landing/EndToEndFlow";
@@ -16,7 +17,10 @@ export function LandingView() {
   const onHiring = () => router.push("/company/onboarding");
   const onGuest = () => browseAsGuest("/candidate/marketplace");
 
+  // reducedMotion="user": Motion itself skips movement for visitors with
+  // "Reduce motion" on, so the components can render the same HTML everywhere.
   return (
+    <MotionConfig reducedMotion="user">
     <div className="min-h-full bg-zinc-50">
       <LandingHero
         isPending={isPending}
@@ -69,5 +73,6 @@ export function LandingView() {
         </div>
       </section>
     </div>
+    </MotionConfig>
   );
 }

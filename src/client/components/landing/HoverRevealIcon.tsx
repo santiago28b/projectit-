@@ -1,6 +1,8 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+
+import { useReducedMotionSafe } from "@/client/lib/useReducedMotionSafe";
 import { useState } from "react";
 
 import { cn } from "@/client/lib/utils";
@@ -50,7 +52,7 @@ export function HoverRevealIcon({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionSafe();
   const styles = ACCENT[accent];
   const Icon = item.icon;
   const [hovered, setHovered] = useState(false);
