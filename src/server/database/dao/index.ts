@@ -10,19 +10,25 @@ import "server-only";
 
 import { getDatabaseBackend } from "@/server/lib/databaseBackend";
 
+import type { AssessmentDao } from "./pg/assessment";
 import type { ProjectsDao } from "./pg/projects";
+import type { SubmissionsDao } from "./pg/submissions";
 import {
+  pgAssessmentDao,
   pgCandidatesDao,
   pgCompaniesDao,
   pgProjectsDao,
+  pgSubmissionsDao,
   pgUsersDao,
 } from "./pg";
+import { supabaseAssessmentDao } from "./supabase/assessment";
 import {
   supabaseCandidatesDao,
   supabaseCompaniesDao,
   supabaseProjectsDao,
   supabaseUsersDao,
 } from "./supabase";
+import { supabaseSubmissionsDao } from "./supabase/submissions";
 
 const backend = getDatabaseBackend();
 
@@ -39,9 +45,13 @@ export const projectsDao = (
   backend === "supabase" ? supabaseProjectsDao : pgProjectsDao
 ) as ProjectsDao;
 
-// Submissions are Postgres-only (local DB or DATABASE_URL to Supabase).
-export { pgSubmissionsDao as submissionsDao } from "./pg/submissions";
-export { pgAssessmentDao as assessmentDao } from "./pg/assessment";
+export const submissionsDao = (
+  backend === "supabase" ? supabaseSubmissionsDao : pgSubmissionsDao
+) as SubmissionsDao;
+
+export const assessmentDao = (
+  backend === "supabase" ? supabaseAssessmentDao : pgAssessmentDao
+) as AssessmentDao;
 
 export const evidenceDao = {
   async listByCandidate(_candidateId: string) {

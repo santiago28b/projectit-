@@ -64,6 +64,7 @@ export const pgCompaniesDao = {
   },
 };
 
+export { pgAssessmentDao } from "./assessment";
 export { pgProjectsDao } from "./projects";
 export { pgSubmissionsDao } from "./submissions";
 
