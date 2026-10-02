@@ -1,28 +1,27 @@
+import { publicEnv } from "@/shared/env";
+
 /**
- * Environment validation. Required vars throw at call time so missing
- * config fails loudly during development instead of at first DB call.
+ * Server env. Public Supabase vars live in `@/shared/env`.
+ * Service role stays here so it never ships to the browser by habit.
  */
-
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
 export const env = {
   get appUrl() {
-    return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    return publicEnv.appUrl;
   },
   get supabaseUrl() {
-    return required("NEXT_PUBLIC_SUPABASE_URL");
+    return publicEnv.supabaseUrl;
   },
-  get supabaseAnonKey() {
-    return required("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  get supabasePublishableKey() {
+    return publicEnv.supabasePublishableKey;
   },
   get supabaseServiceRoleKey() {
-    return required("SUPABASE_SERVICE_ROLE_KEY");
+    const value = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!value) {
+      throw new Error(
+        "Missing required environment variable: SUPABASE_SERVICE_ROLE_KEY",
+      );
+    }
+    return value;
   },
   get openaiApiKey() {
     return process.env.OPENAI_API_KEY ?? null;
