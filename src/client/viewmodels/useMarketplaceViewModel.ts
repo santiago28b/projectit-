@@ -3,7 +3,7 @@
 import { useCallback, useState, useTransition } from "react";
 
 import { recommendProjectsAction } from "@/server/actions";
-import type { Project } from "@/server/models/domain";
+import type { Project } from "@/shared/models/domain";
 
 export interface RecommendedProject {
   item: Project;

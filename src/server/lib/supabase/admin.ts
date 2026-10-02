@@ -2,17 +2,29 @@ import "server-only";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-import { env } from "@/server/lib/env";
+import { publicEnv } from "@/shared/env";
+
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
 
 /**
- * Service-role client. Bypasses RLS — use only on the server for admin
- * and seed paths. Never import this into client components.
+ * Service-role client. Bypasses RLS — server only.
+ * Never import into client components.
  */
 export function createAdminClient() {
-  return createSupabaseClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+  return createSupabaseClient(
+    publicEnv.supabaseUrl,
+    required("SUPABASE_SERVICE_ROLE_KEY"),
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
     },
-  });
+  );
 }
