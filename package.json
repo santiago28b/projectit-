@@ -14,6 +14,7 @@
     "db:push": "npx supabase db push",
     "deploy:staging": "bash scripts/deploy_staging.sh",
     "publish:staging": "bash scripts/publish_staging.sh",
+    "nginx:staging": "bash scripts/install_nginx_staging.sh",
     "ssh:ec2": "bash scripts/ssh_into_ec2.sh"
   },
   "dependencies": {
