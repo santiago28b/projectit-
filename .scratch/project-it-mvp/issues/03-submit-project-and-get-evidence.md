@@ -1,12 +1,12 @@
 # 03: Submit a Project and get Evidence
 
-**What to build:** As Maria, I start a Project, work in a workspace (instructions, resources, starter files), and submit a repository URL, files, a written explanation, and a required Walkthrough video. The Walkthrough prompt lists what to cover. After I submit, the AI writes AI-assessed Evidence for each skill and suggests follow-up questions, and I see my Evidence. My dashboard shows available, in-progress, and submitted Projects.
+**What to build:** As Maria, I start a Project, work in a workspace (instructions, resources, starter files), and submit a repository URL, files, a written explanation, and a required Walkthrough video. The Walkthrough prompt lists what to cover. After I submit, the AI writes AI-assessed Evidence for each skill and suggests follow-up questions, and I see my Evidence. My dashboard shows available and submitted Projects. (No "in progress" state: the schema only records a Submission when it's submitted.)
 
 **Blocked by:** 02
 
 **Status:** ready-for-agent
 
-- [ ] Start Project marks it as in progress on Maria's dashboard
+- [ ] Start Project opens the workspace
 - [ ] The workspace shows instructions, resources, and starter files
 - [ ] Can't submit without a Walkthrough upload (mock storage is fine)
 - [ ] A second Submission to the same Project is rejected
