@@ -27,9 +27,13 @@ describe("GET /api/marketplace", () => {
     expect(projectsService.listMarketplace).toHaveBeenCalledWith(maria);
   });
 
-  it("returns 401 for a Company user or nobody", async () => {
+  it("lists public Projects for a Guest (no Candidate)", async () => {
     vi.mocked(getCurrentCandidate).mockResolvedValue(null);
-    expect((await projectsController.listMarketplace(req)).status).toBe(401);
+    vi.mocked(projectsService.listMarketplace).mockResolvedValue([]);
+    const res = await projectsController.listMarketplace(req);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ projects: [] });
+    expect(projectsService.listMarketplace).toHaveBeenCalledWith(null);
   });
 });
 
@@ -54,5 +58,15 @@ describe("GET /api/projects/[id]", () => {
   it("returns 404 without querying for a malformed id", async () => {
     expect((await projectsController.getById(req, "not-a-uuid")).status).toBe(404);
     expect(projectsService.getDetail).not.toHaveBeenCalled();
+  });
+
+  it("returns public Project detail for a Guest", async () => {
+    vi.mocked(getCurrentCandidate).mockResolvedValue(null);
+    vi.mocked(projectsService.getDetail).mockResolvedValue({
+      id: projectId,
+    } as never);
+    const res = await projectsController.getById(req, projectId);
+    expect(res.status).toBe(200);
+    expect(projectsService.getDetail).toHaveBeenCalledWith(projectId, null);
   });
 });

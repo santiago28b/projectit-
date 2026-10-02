@@ -1,4 +1,5 @@
 import { ProjectDetailView } from "@/client/views/candidate/ProjectDetailView";
+import { getCurrentCandidate } from "@/server/lib/currentUser";
 
 export default async function ProjectDetailPage({
   params,
@@ -6,5 +7,6 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <ProjectDetailView projectId={id} />;
+  const candidate = await getCurrentCandidate();
+  return <ProjectDetailView projectId={id} isGuest={!candidate} />;
 }

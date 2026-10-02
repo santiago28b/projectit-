@@ -5,4 +5,8 @@ export const sessionService = {
   switchTo(userId: string) {
     return sessionRepo.switchTo(userId);
   },
+
+  clear() {
+    return sessionRepo.clear();
+  },
 };

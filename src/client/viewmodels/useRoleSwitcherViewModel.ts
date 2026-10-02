@@ -27,5 +27,18 @@ export function useRoleSwitcherViewModel() {
     });
   }
 
-  return { switchTo, error, isPending };
+  function browseAsGuest(redirectTo = "/candidate/marketplace") {
+    startTransition(async () => {
+      try {
+        setError(null);
+        await sessionService.clear();
+        router.push(redirectTo);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to clear session");
+      }
+    });
+  }
+
+  return { switchTo, browseAsGuest, error, isPending };
 }

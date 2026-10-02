@@ -54,4 +54,20 @@ export const sessionController = {
       return jsonError(err);
     }
   },
+
+  /** DELETE /api/session — clear the demo identity (browse as Guest). */
+  async clear() {
+    try {
+      const response = NextResponse.json({ current: null });
+      response.cookies.set(CURRENT_USER_COOKIE, "", {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 0,
+      });
+      return response;
+    } catch (err) {
+      return jsonError(err);
+    }
+  },
 };

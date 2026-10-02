@@ -8,4 +8,10 @@ export const sessionRepo = {
       body: JSON.stringify({ userId }),
     });
   },
+
+  clear() {
+    return apiFetch<{ current: null }>("/api/session", {
+      method: "DELETE",
+    });
+  },
 };

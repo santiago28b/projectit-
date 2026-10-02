@@ -47,28 +47,49 @@ async function withCounts(
  */
 export function createProjectsService(dao: ProjectsDao) {
   return {
-    /** Published Projects this Candidate is eligible for. */
-    async listMarketplace(candidate: Candidate): Promise<ProjectCard[]> {
-      const [projects, invited] = await Promise.all([
-        dao.listPublishedCards(),
-        dao.invitedProjectIds(candidate.id),
-      ]);
+    /**
+     * Published Projects this Candidate is eligible for.
+     * Guests (null Candidate) only see public published Projects.
+     */
+    async listMarketplace(
+      candidate: Candidate | null,
+    ): Promise<ProjectCard[]> {
+      const projects = await dao.listPublishedCards();
+      if (!candidate) {
+        return projects.filter(
+          (project) =>
+            project.status === "published" && project.visibility === "public",
+        );
+      }
+      const invited = await dao.invitedProjectIds(candidate.id);
       return projects.filter((project) =>
         isEligible(project, candidate, invited),
       );
     },
 
     /**
-     * Project detail, or null when the Candidate can't see it. Opening a
+     * Project detail, or null when the viewer can't see it. Opening a
      * restricted Project by URL doesn't get around Visibility. A Candidate
-     * who already submitted can always reopen it.
+     * who already submitted can always reopen it. Guests see public only.
      */
     async getDetail(
       projectId: string,
-      candidate: Candidate,
+      candidate: Candidate | null,
     ): Promise<ProjectDetail | null> {
       const project = await dao.findDetail(projectId);
       if (!project) return null;
+
+      if (!candidate) {
+        if (project.status !== "published" || project.visibility !== "public") {
+          return null;
+        }
+        return {
+          ...project,
+          rubric: await dao.rubric(projectId),
+          mySubmissionId: null,
+        };
+      }
+
       const [invited, mySubmissionId] = await Promise.all([
         dao.invitedProjectIds(candidate.id),
         dao.submissionId(projectId, candidate.id),

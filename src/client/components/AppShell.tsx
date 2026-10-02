@@ -36,6 +36,10 @@ const NAV_LINKS: Record<UserRole, { href: string; label: string }[]> = {
   platform_admin: [{ href: "/admin", label: "Admin" }],
 };
 
+const GUEST_NAV = [
+  { href: "/candidate/marketplace", label: "Marketplace" },
+] as const;
+
 function accountLabel(account: SwitcherAccount) {
   return account.companyName
     ? `${account.name} · ${account.companyName}`
@@ -51,9 +55,11 @@ export function AppShell({
   accounts: SwitcherAccount[];
   children: React.ReactNode;
 }) {
-  const { switchTo, isPending, error } = useRoleSwitcherViewModel();
+  const { switchTo, browseAsGuest, isPending, error } =
+    useRoleSwitcherViewModel();
   const role = current?.user.role;
   const accent = role ? ROLE_STYLES[role] : null;
+  const navLinks = role ? NAV_LINKS[role] : GUEST_NAV;
 
   const candidates = accounts.filter((a) => a.role === "candidate");
   const companies = accounts.filter((a) => a.role === "company_admin");
@@ -68,22 +74,21 @@ export function AppShell({
           !role && "border-t-platform",
         )}
       >
-        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-6 px-6">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-6">
           <Link href="/" className="font-semibold text-platform">
             Project It
           </Link>
 
           <nav className="flex gap-4 text-sm font-medium text-muted-foreground">
-            {role &&
-              NAV_LINKS[role].map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="hover:text-foreground"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-2 text-sm">
@@ -94,18 +99,31 @@ export function AppShell({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" disabled={isPending}>
-                  {accent && (
+                  {accent ? (
                     <span className={cn("size-2 rounded-full", accent.dot)} />
+                  ) : (
+                    <span className="size-2 rounded-full bg-platform" />
                   )}
                   {current
                     ? current.company
                       ? `${current.user.name} · ${current.company.name}`
                       : current.user.name
-                    : "Choose an account"}
+                    : "Guest"}
                   <ChevronDownIcon />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Preview</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onSelect={() => browseAsGuest("/candidate/marketplace")}
+                    className={cn(!current && "font-semibold")}
+                  >
+                    <span className="size-2 rounded-full bg-platform" />
+                    Browse as Guest
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
                 <AccountGroup
                   label="Candidates"
                   accounts={candidates}

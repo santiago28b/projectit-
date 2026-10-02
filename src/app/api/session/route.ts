@@ -9,3 +9,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   return sessionController.switchTo(request);
 }
+
+export async function DELETE() {
+  return sessionController.clear();
+}

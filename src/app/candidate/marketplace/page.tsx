@@ -4,11 +4,15 @@ import { getCurrentCandidate } from "@/server/lib/currentUser";
 
 export default async function MarketplacePage() {
   const candidate = await getCurrentCandidate();
+  const isGuest = !candidate;
 
   return (
     <MarketplaceView
+      isGuest={isGuest}
       recommended={
-        <RecommendedProjects candidateId={candidate?.id ?? null} />
+        isGuest ? undefined : (
+          <RecommendedProjects candidateId={candidate.id} />
+        )
       }
     />
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { GuestBanner } from "@/client/components/GuestBanner";
 import {
   Card,
   CardContent,
@@ -20,9 +21,12 @@ import {
 
 export function MarketplaceView({
   recommended,
+  isGuest = false,
 }: {
   /** "Recommended for you" (ticket 04) renders here when provided. */
   recommended?: ReactNode;
+  /** No role-switcher account — public Projects only. */
+  isGuest?: boolean;
 }) {
   const { projects, error, isLoading } = useProjectListViewModel();
 
@@ -35,11 +39,17 @@ export function MarketplaceView({
         the Company that owns or Sponsors it.
       </p>
 
+      {isGuest && (
+        <div className="mt-6">
+          <GuestBanner />
+        </div>
+      )}
+
       {recommended && <div className="mt-10">{recommended}</div>}
 
       <section aria-labelledby="all-projects" className="mt-10">
         <h2 id="all-projects" className="text-xl font-semibold text-zinc-900">
-          All Projects you can take
+          {isGuest ? "Public Projects" : "All Projects you can take"}
         </h2>
         {error && (
           <p role="alert" className="mt-4 text-sm text-red-700">

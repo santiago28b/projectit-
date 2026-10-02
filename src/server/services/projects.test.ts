@@ -91,6 +91,23 @@ describe("Marketplace Visibility", () => {
     const ids = (await service.listMarketplace(maria)).map((p) => p.id);
     expect(ids).toContain("invite-only");
   });
+
+  it("lists only public published Projects for a Guest", async () => {
+    const service = createProjectsService(fakeDao({}));
+    const ids = (await service.listMarketplace(null)).map((p) => p.id);
+    expect(ids).toEqual(["public"]);
+  });
+});
+
+describe("Guest Project detail", () => {
+  it("shows a public Project and hides restricted ones", async () => {
+    const service = createProjectsService(fakeDao({}));
+    const publicDetail = await service.getDetail("public", null);
+    expect(publicDetail?.id).toBe("public");
+    expect(publicDetail?.mySubmissionId).toBeNull();
+    expect(await service.getDetail("my-university", null)).toBeNull();
+    expect(await service.getDetail("invite-only", null)).toBeNull();
+  });
 });
 
 describe("Project detail", () => {

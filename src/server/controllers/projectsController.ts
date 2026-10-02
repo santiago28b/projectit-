@@ -97,7 +97,6 @@ export const projectsController = {
     void _request;
     try {
       const candidate = await getCurrentCandidate();
-      if (!candidate) return noCandidate();
       const projects = await projectsService.listMarketplace(candidate);
       return NextResponse.json({ projects });
     } catch (err) {
@@ -109,7 +108,6 @@ export const projectsController = {
     void _request;
     try {
       const candidate = await getCurrentCandidate();
-      if (!candidate) return noCandidate();
       const project = uuid.test(projectId)
         ? await projectsService.getDetail(projectId, candidate)
         : null;

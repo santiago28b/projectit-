@@ -2,18 +2,28 @@
 
 import Link from "next/link";
 
-import { buttonVariants } from "@/client/components/ui/button";
+import { GuestBanner } from "@/client/components/GuestBanner";
+import { Button, buttonVariants } from "@/client/components/ui/button";
 import { cn } from "@/client/lib/utils";
 import { useProjectDetailViewModel } from "@/client/viewmodels/useProjectDetailViewModel";
+import { useRoleSwitcherViewModel } from "@/client/viewmodels/useRoleSwitcherViewModel";
 import {
   ownerLine,
   ProjectBadges,
   SkillList,
   TimingLine,
 } from "@/client/views/candidate/ProjectLabels";
+import { SEED_IDS } from "@/shared/constants/seedIds";
 
-export function ProjectDetailView({ projectId }: { projectId: string }) {
+export function ProjectDetailView({
+  projectId,
+  isGuest = false,
+}: {
+  projectId: string;
+  isGuest?: boolean;
+}) {
   const { project, error, isLoading } = useProjectDetailViewModel(projectId);
+  const { switchTo, isPending } = useRoleSwitcherViewModel();
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
@@ -23,6 +33,12 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
       >
         ← Marketplace
       </Link>
+
+      {isGuest && (
+        <div className="mt-6">
+          <GuestBanner />
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="mt-6 text-sm text-red-700">
@@ -100,6 +116,26 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
                 >
                   View your Evidence
                 </Link>
+              </div>
+            ) : isGuest ? (
+              <div className="space-y-3">
+                <p className="text-sm text-zinc-600">
+                  Switch to a Candidate account to start this Project.
+                </p>
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={isPending}
+                  onClick={() =>
+                    switchTo(
+                      SEED_IDS.mariaUser,
+                      `/candidate/projects/${project.id}`,
+                    )
+                  }
+                  className="bg-candidate text-white hover:bg-candidate/90"
+                >
+                  Switch to a Candidate to start
+                </Button>
               </div>
             ) : (
               <Link
