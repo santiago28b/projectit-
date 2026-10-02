@@ -15,6 +15,7 @@ function required(name: string): string {
 /**
  * Service-role client. Bypasses RLS — server only.
  * Never import into client components.
+ * Only used when DATABASE_BACKEND=supabase.
  */
 export function createAdminClient() {
   return createSupabaseClient(

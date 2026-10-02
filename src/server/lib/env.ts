@@ -1,25 +1,16 @@
 import { publicEnv } from "@/shared/env";
 
 /**
- * Server env. Public Supabase vars live in `@/shared/env`.
- * Service role stays here so it never ships to the browser by habit.
+ * Server env. DATABASE_URL and secrets stay here so they never ship to the browser.
  */
 export const env = {
   get appUrl() {
     return publicEnv.appUrl;
   },
-  get supabaseUrl() {
-    return publicEnv.supabaseUrl;
-  },
-  get supabasePublishableKey() {
-    return publicEnv.supabasePublishableKey;
-  },
-  get supabaseServiceRoleKey() {
-    const value = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  get databaseUrl() {
+    const value = process.env.DATABASE_URL;
     if (!value) {
-      throw new Error(
-        "Missing required environment variable: SUPABASE_SERVICE_ROLE_KEY",
-      );
+      throw new Error("Missing required environment variable: DATABASE_URL");
     }
     return value;
   },

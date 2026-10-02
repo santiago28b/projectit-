@@ -7,8 +7,8 @@
 
 ## Ground rules
 - **Branches:** one short branch per ticket off `main`; merge back at least every hour.
-- **One shared Supabase DB → Person A owns migrations and the seed.** Nobody else runs `db:push` or a reset. If you need a column, ask A.
-- **Role switcher = a cookie with a seeded user id**, not Supabase Auth. Server code reads through the admin client so RLS doesn't block the demo.
+- **One shared DB → Person A owns migrations and the seed.** Migrations live in `supabase/migrations/` but apply via `npm run db:reset` + `DATABASE_URL` (local Homebrew, EC2, or a Supabase connection string). Optional: `DATABASE_BACKEND=supabase` for the service-role JS client. Nobody else runs a reset. If you need a column, ask A.
+- **Role switcher = a cookie with a seeded user id**, not Supabase Auth. Server code reads through the configured database backend so RLS doesn't block the demo.
 - **Matching is computed on the fly** (a deterministic formula plus AI-written reasons). Leave the `matches` table unused.
 - **Real LLM for `evaluateSubmission` and `explainMatch`**, with the mock as fallback. Project generation stays mocked. Keep the key in `.env.local` only.
 - **Every feature goes through the same layers:** route page → view + viewmodel (client) → server action → service (rules) → repository (Supabase). Put the rules in services as pure functions so they're testable.

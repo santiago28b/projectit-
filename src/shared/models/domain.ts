@@ -34,9 +34,26 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  /** Set for company_admin users; null for Candidates */
+  companyId: string | null;
   profileData: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Who the role switcher says is looking (cookie-based demo identity). */
+export interface CurrentUser {
+  user: User;
+  candidate: Candidate | null;
+  company: Company | null;
+}
+
+/** One row in the role switcher dropdown. */
+export interface SwitcherAccount {
+  userId: string;
+  name: string;
+  role: UserRole;
+  companyName: string | null;
 }
 
 export interface Company {

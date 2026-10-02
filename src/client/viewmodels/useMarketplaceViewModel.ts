@@ -2,16 +2,16 @@
 
 import { useCallback, useState, useTransition } from "react";
 
-import { recommendProjectsAction } from "@/server/actions";
-import type { Project } from "@/shared/models/domain";
+import {
+  matchingService,
+  type RecommendedProject,
+} from "@/client/services/matchingService";
 
-export interface RecommendedProject {
-  item: Project;
-  reasons: string[];
-}
+export type { RecommendedProject };
 
 /**
  * Candidate Marketplace ViewModel — loads recommended Projects with reasons.
+ * Talks to client matchingService → matchingRepo → /api/* (not server actions).
  */
 export function useMarketplaceViewModel(candidateId: string | null) {
   const [recommendations, setRecommendations] = useState<
@@ -25,7 +25,8 @@ export function useMarketplaceViewModel(candidateId: string | null) {
     startTransition(async () => {
       try {
         setError(null);
-        const result = await recommendProjectsAction(candidateId);
+        const result =
+          await matchingService.recommendForCandidate(candidateId);
         setRecommendations(result);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load");

@@ -1,6 +1,6 @@
 /**
  * Public env used by both client and server.
- * Service-role key stays in server/lib/env.ts only.
+ * Secrets (DATABASE_URL, API keys, service role) stay in server/lib/env.ts.
  */
 
 function required(name: string): string {
@@ -15,10 +15,13 @@ export const publicEnv = {
   get appUrl() {
     return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   },
+
+  /** Lazy — only required when DATABASE_BACKEND=supabase. */
   get supabaseUrl() {
     return required("NEXT_PUBLIC_SUPABASE_URL");
   },
-  /** New publishable key from Supabase dashboard (replaces legacy anon key). */
+
+  /** Lazy — only required when DATABASE_BACKEND=supabase. */
   get supabasePublishableKey() {
     return required("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
   },
