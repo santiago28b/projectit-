@@ -49,6 +49,14 @@ export const pgMatchingRepository = {
     return rows[0] ? toJob(rows[0]) : null;
   },
 
+  async listJobsForCompany(companyId: string): Promise<Job[]> {
+    const { rows } = await db.query<Row>(
+      `select * from public.jobs where company_id = $1 order by created_at`,
+      [companyId],
+    );
+    return rows.map(toJob);
+  },
+
   async listOpenProjects(): Promise<Project[]> {
     const { rows } = await db.query<Row>(
       `select * from public.projects where status <> 'closed'`,

@@ -1,7 +1,18 @@
+import { RecommendedProjects } from "@/client/components/RecommendedProjects";
 import { MarketplaceView } from "@/client/views/candidate/MarketplaceView";
+import { getCurrentCandidate } from "@/server/lib/currentUser";
 
-// Ticket 04: pass <RecommendedProjects candidateId={...} /> as `recommended`,
-// with the id from getCurrentCandidate() in @/server/lib/currentUser.
-export default function MarketplacePage() {
-  return <MarketplaceView />;
+export default async function MarketplacePage() {
+  const candidate = await getCurrentCandidate();
+
+  return (
+    <MarketplaceView
+      recommended={
+        <RecommendedProjects
+          candidateId={candidate?.id ?? null}
+          projectHref={(id) => `/candidate/projects/${id}`}
+        />
+      }
+    />
+  );
 }

@@ -8,6 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "db:start": "npx supabase start",
+    "db:stop": "npx supabase stop",
+    "db:status": "npx supabase status",
+    "db:push": "npx supabase db push",
     "db:create": "bash scripts/db_create.sh",
     "db:reset": "bash scripts/db_reset.sh",
     "db:psql": "bash scripts/db_psql.sh",
@@ -40,6 +44,7 @@
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.11"
   }
 }

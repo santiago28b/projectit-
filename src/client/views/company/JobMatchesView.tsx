@@ -10,6 +10,7 @@ interface JobMatchesViewProps {
   jobId: string;
   /** Route to the Candidate review screen (Person D, ticket 06). */
   submissionHref?: (submissionId: string) => string;
+  /** Route to a Company Project page. Cards aren't links until one exists (ticket 07). */
   projectHref?: (projectId: string) => string;
 }
 
@@ -32,8 +33,8 @@ const SOURCE_LABEL: Record<EvidenceSource, string> = {
  */
 export function JobMatchesView({
   jobId,
-  submissionHref = (id) => `/company/submissions/${id}`,
-  projectHref = (id) => `/company/projects/${id}`,
+  submissionHref = (id) => `/company/review/${id}`,
+  projectHref,
 }: JobMatchesViewProps) {
   const { overview, notFound, error, isPending, load } = useJobMatchesViewModel(jobId);
 
@@ -181,8 +182,8 @@ export function JobMatchesView({
             <ul className="space-y-3">
               {projects.map(({ item: p, reasons }) => (
                 <li key={p.id}>
-                  <Link
-                    href={projectHref(p.id)}
+                  <MaybeLink
+                    href={projectHref?.(p.id)}
                     className="block rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-blue-300"
                   >
                     <div className="flex items-center gap-2 text-xs">
@@ -199,7 +200,7 @@ export function JobMatchesView({
                     {reasons.map((r) => (
                       <p key={r} className="mt-1 text-sm text-teal-800">{r}</p>
                     ))}
-                  </Link>
+                  </MaybeLink>
                 </li>
               ))}
             </ul>
@@ -207,6 +208,22 @@ export function JobMatchesView({
         </section>
       </div>
     </Shell>
+  );
+}
+
+function MaybeLink({
+  href,
+  className,
+  children,
+}: {
+  href?: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return href ? (
+    <Link href={href} className={className}>{children}</Link>
+  ) : (
+    <div className={className}>{children}</div>
   );
 }
 

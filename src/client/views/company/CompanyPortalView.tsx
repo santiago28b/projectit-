@@ -5,9 +5,12 @@ import Link from "next/link";
 export function CompanyPortalView({
   name,
   companyName,
+  children,
 }: {
   name: string | null;
   companyName: string | null;
+  /** Dashboard sections (e.g. Your Jobs). */
+  children?: React.ReactNode;
 }) {
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-12">
@@ -24,6 +27,7 @@ export function CompanyPortalView({
         <Link href="/company/review">Review Submissions</Link>
         <Link href="/">Home</Link>
       </nav>
+      {children && <div className="mt-10 space-y-10">{children}</div>}
     </main>
   );
 }

@@ -63,6 +63,18 @@ export const supabaseMatchingRepository = {
     return row ? toJob(row) : null;
   },
 
+  async listJobsForCompany(companyId: string): Promise<Job[]> {
+    const rows = check(
+      await db()
+        .from("jobs")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("created_at"),
+      "listJobsForCompany",
+    );
+    return (rows as Row[]).map(toJob);
+  },
+
   async listOpenProjects(): Promise<Project[]> {
     const rows = check(
       await db().from("projects").select("*").neq("status", "closed"),
