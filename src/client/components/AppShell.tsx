@@ -27,7 +27,11 @@ const NAV_LINKS: Record<UserRole, { href: string; label: string }[]> = {
     { href: "/candidate", label: "Dashboard" },
     { href: "/candidate/marketplace", label: "Marketplace" },
   ],
-  company_admin: [{ href: "/company", label: "Dashboard" }],
+  company_admin: [
+    { href: "/company", label: "Dashboard" },
+    { href: "/company/projects", label: "Projects" },
+    { href: "/company/review", label: "Review" },
+  ],
   platform_admin: [{ href: "/admin", label: "Admin" }],
 };
 

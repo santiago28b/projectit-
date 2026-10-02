@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { SEED_IDS } from "@/shared/constants/seedIds";
+
 export function CompanyPortalView({
   name,
   companyName,
@@ -18,10 +20,15 @@ export function CompanyPortalView({
         {name ? `Welcome back, ${name.split(" ")[0]}` : "Dashboard"}
       </h1>
       <p className="mt-2 text-zinc-600">
-        Jobs, Projects, Submissions, and Shortlists will live here.
+        Publish Projects, Sponsor Platform Projects, and review Submissions.
       </p>
       <nav className="mt-8 flex flex-wrap gap-4 text-sm font-medium text-company">
+        <Link href="/company/projects">Projects</Link>
+        <Link href="/company/projects/new">Create Project</Link>
         <Link href="/company/review">Review Submissions</Link>
+        <Link href={`/company/jobs/${SEED_IDS.summitIntern}`}>
+          Intern Job Matches
+        </Link>
         <Link href="/">Home</Link>
       </nav>
     </main>

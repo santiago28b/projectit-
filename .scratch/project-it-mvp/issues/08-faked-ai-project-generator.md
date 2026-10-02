@@ -4,9 +4,9 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] Generate with AI is a third option next to Create manually
-- [ ] Shows the extracted skills, then 3 ideas (title, scenario, skills, time, deliverables, why it's relevant)
-- [ ] Picking an idea fills an editable Project form, which reuses the form from ticket 07
-- [ ] Every field can be edited before publishing
+- [x] Generate with AI is a third option next to Create manually
+- [x] Shows the extracted skills, then 3 ideas (title, scenario, skills, time, deliverables, why it's relevant)
+- [x] Picking an idea fills an editable Project form, which reuses the form from ticket 07
+- [x] Every field can be edited before publishing

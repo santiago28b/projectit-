@@ -64,6 +64,8 @@ export const pgCompaniesDao = {
   },
 };
 
+export { pgProjectsDao } from "./projects";
+
 export const pgCandidatesDao = {
   async findById(id: string): Promise<Candidate | null> {
     const { rows } = await db.query<CandidateRow>(

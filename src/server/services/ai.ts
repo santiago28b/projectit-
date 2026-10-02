@@ -1,35 +1,17 @@
 import { env } from "@/server/lib/env";
-import type { EvidenceLevel } from "@/server/models/domain";
+import type {
+  ExtractedSkills,
+  GeneratedProject,
+  ProjectIdea,
+  SubmissionEvaluationResult,
+} from "@/shared/models/ai";
 
-export interface ExtractedSkills {
-  required: string[];
-  preferred: string[];
-}
-
-export interface ProjectIdea {
-  title: string;
-  summary: string;
-  skills: string[];
-}
-
-export interface GeneratedProject {
-  title: string;
-  scenario: string;
-  instructions: string;
-  skills: string[];
-  expectedDurationMinutes: number;
-  deliverables: string[];
-  rubric: { name: string; description: string }[];
-}
-
-export interface SubmissionEvaluationResult {
-  evidence: {
-    skill: string;
-    level: EvidenceLevel;
-    rationale: string;
-  }[];
-  followUpQuestions: string[];
-}
+export type {
+  ExtractedSkills,
+  GeneratedProject,
+  ProjectIdea,
+  SubmissionEvaluationResult,
+} from "@/shared/models/ai";
 
 /**
  * AI seam. Mock runs whenever there is no API key or a call fails.
@@ -60,32 +42,77 @@ const mockAIService: AIService = {
     return [
       {
         title: "Broken Delivery Tracker",
-        summary: "Debug a failing logistics dashboard.",
-        skills: ["TypeScript", "React", "Debugging"],
+        scenario:
+          "Dispatchers say packages show as Delivered before the driver arrives, and the list blanks after refresh.",
+        skills: ["TypeScript", "React", "REST APIs", "Debugging", "Testing"],
+        expectedDurationMinutes: 90,
+        deliverables: [
+          "Repository URL",
+          "Written explanation",
+          "Walkthrough video",
+        ],
+        whyRelevant:
+          "Screens debugging and front-end skills the Job asks for in a realistic ops incident.",
       },
       {
         title: "API Contract Fix",
-        summary: "Repair mismatched REST responses.",
-        skills: ["REST APIs", "Testing"],
+        scenario:
+          "The mobile app and the REST API disagree on delivery statuses after a schema change.",
+        skills: ["REST APIs", "TypeScript", "Testing"],
+        expectedDurationMinutes: 75,
+        deliverables: ["Repository URL", "Walkthrough video"],
+        whyRelevant:
+          "Tests whether they can reconcile API contracts and cover the fix with tests.",
       },
       {
-        title: "Status Badges",
-        summary: "Add delivery status UI with tests.",
-        skills: ["React", "Testing"],
+        title: "Status Badge Suite",
+        scenario:
+          "Support needs clear status badges for delayed, out-for-delivery, and failed drops.",
+        skills: ["React", "Testing", "Debugging"],
+        expectedDurationMinutes: 60,
+        deliverables: [
+          "Repository URL",
+          "Written explanation",
+          "Walkthrough video",
+        ],
+        whyRelevant:
+          "Focuses on UI clarity and tests without needing a full stack rebuild.",
       },
     ];
   },
   async generateProject(idea) {
     return {
       title: idea.title,
-      scenario: idea.summary,
-      instructions: "Complete the task and record a Walkthrough.",
+      scenario: idea.scenario,
+      description: idea.whyRelevant,
+      instructions: [
+        "1. Clone the starter and reproduce the issue.",
+        "2. Fix the root cause with the smallest clear change.",
+        "3. Add tests that would have caught it.",
+        "4. Record a Walkthrough covering approach, decisions, and trade-offs.",
+      ].join("\n"),
       skills: idea.skills,
-      expectedDurationMinutes: 90,
-      deliverables: ["Repository URL", "Written explanation", "Walkthrough"],
+      expectedDurationMinutes: idea.expectedDurationMinutes,
+      difficulty: "Intermediate",
+      deliverables: idea.deliverables,
       rubric: [
-        { name: "Correctness", description: "Does the solution work?" },
-        { name: "Clarity", description: "Is the Walkthrough clear?" },
+        {
+          name: "Correctness",
+          description: "The reported issue is fixed and nothing else broke.",
+        },
+        {
+          name: "Debugging approach",
+          description: "Found the root cause methodically instead of guessing.",
+        },
+        {
+          name: "Testing",
+          description: "Tests would catch a regression of this bug.",
+        },
+        {
+          name: "Communication",
+          description:
+            "The Walkthrough explains decisions and trade-offs clearly.",
+        },
       ],
     };
   },

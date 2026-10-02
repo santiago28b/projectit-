@@ -13,11 +13,13 @@ import { getDatabaseBackend } from "@/server/lib/databaseBackend";
 import {
   pgCandidatesDao,
   pgCompaniesDao,
+  pgProjectsDao,
   pgUsersDao,
 } from "./pg";
 import {
   supabaseCandidatesDao,
   supabaseCompaniesDao,
+  supabaseProjectsDao,
   supabaseUsersDao,
 } from "./supabase";
 
@@ -32,15 +34,8 @@ export const companiesDao =
 export const candidatesDao =
   backend === "supabase" ? supabaseCandidatesDao : pgCandidatesDao;
 
-export const projectsDao = {
-  async listPublished() {
-    throw new Error("projectsDao.listPublished not implemented");
-  },
-  async findById(_id: string) {
-    void _id;
-    throw new Error("projectsDao.findById not implemented");
-  },
-};
+export const projectsDao =
+  backend === "supabase" ? supabaseProjectsDao : pgProjectsDao;
 
 export const submissionsDao = {
   async findByProjectAndCandidate(_projectId: string, _candidateId: string) {
