@@ -1,4 +1,5 @@
 import { env } from "@/server/lib/env";
+import { claudeEvaluateSubmission } from "@/server/services/claudeEvaluator";
 import type { EvidenceLevel } from "@/server/models/domain";
 
 export interface ExtractedSkills {
@@ -211,12 +212,18 @@ const mockAIService: AIService = {
   },
 };
 
+/**
+ * Live Claude for `evaluateSubmission` when ANTHROPIC_API_KEY is set.
+ * Everything else stays mocked for now (project generation is faked by design).
+ * Callers fall back to the mock when the live call fails.
+ */
 export function getAIService(): AIService {
-  if (!env.openaiApiKey) {
-    return mockAIService;
-  }
-  // Live provider wiring lands in a later issue; keep mock until then.
-  return mockAIService;
+  const apiKey = env.anthropicApiKey;
+  if (!apiKey) return mockAIService;
+  return {
+    ...mockAIService,
+    evaluateSubmission: (input) => claudeEvaluateSubmission(apiKey, input),
+  };
 }
 
 export const aiService = getAIService();
