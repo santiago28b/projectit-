@@ -1,17 +1,19 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { EndToEndFlow } from "@/client/components/landing/EndToEndFlow";
 import { LandingHero } from "@/client/components/landing/LandingHero";
 import { ProductTriad } from "@/client/components/landing/ProductTriad";
 import { Button } from "@/client/components/ui/button";
 import { useRoleSwitcherViewModel } from "@/client/viewmodels/useRoleSwitcherViewModel";
-import { SEED_IDS } from "@/shared/constants/seedIds";
 
 export function LandingView() {
-  const { switchTo, browseAsGuest, isPending } = useRoleSwitcherViewModel();
+  const router = useRouter();
+  const { browseAsGuest, isPending } = useRoleSwitcherViewModel();
 
-  const onLooking = () => switchTo(SEED_IDS.mariaUser, "/candidate");
-  const onHiring = () => switchTo(SEED_IDS.summitAdmin, "/company");
+  const onLooking = () => router.push("/login");
+  const onHiring = () => router.push("/company/onboarding");
   const onGuest = () => browseAsGuest("/candidate/marketplace");
 
   return (
@@ -34,7 +36,7 @@ export function LandingView() {
             Jump in as a Candidate or Company, or browse public Projects as a
             Guest first.
           </p>
-          <div className="flex w-full flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
+          <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:flex-wrap">
             <Button
               type="button"
               size="lg"
@@ -42,7 +44,17 @@ export function LandingView() {
               onClick={onLooking}
               className="bg-candidate text-white hover:bg-candidate/90"
             >
-              I&apos;m Looking for Opportunities
+              I&apos;m Looking
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={onGuest}
+              className="border-platform/30 text-platform"
+            >
+              Browse Projects
             </Button>
             <Button
               type="button"
@@ -52,15 +64,6 @@ export function LandingView() {
               className="bg-company text-white hover:bg-company/90"
             >
               I&apos;m Hiring
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="outline"
-              disabled={isPending}
-              onClick={onGuest}
-            >
-              Browse as Guest
             </Button>
           </div>
         </div>
