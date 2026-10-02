@@ -1,6 +1,8 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+
+import { useReducedMotionSafe } from "@/client/lib/useReducedMotionSafe";
 import { useState } from "react";
 
 import { HoverRevealIcon } from "@/client/components/landing/HoverRevealIcon";
@@ -29,7 +31,7 @@ function ColumnHeader({
 }
 
 export function ProductTriad() {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionSafe();
   const [openCandidate, setOpenCandidate] = useState<string | null>(null);
   const [openCompany, setOpenCompany] = useState<string | null>(null);
   const [openPlatform, setOpenPlatform] = useState<string | null>(null);
