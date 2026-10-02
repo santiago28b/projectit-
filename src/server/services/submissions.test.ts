@@ -6,7 +6,12 @@ import type { Candidate, Project, Submission } from "@/shared/models/domain";
 
 import { createSubmissionsService, SubmissionError } from "./submissions";
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/server/database/dao", () => ({ projectsDao: {}, submissionsDao: {} }));
+vi.mock("@/server/lib/db", () => ({ db: {} }));
+vi.mock("@/server/lib/supabase/admin", () => ({
+  createAdminClient: () => ({}),
+}));
 
 const maria = { id: "maria" } as Candidate;
 

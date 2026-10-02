@@ -7,8 +7,13 @@ import type { Candidate } from "@/shared/models/domain";
 
 import { submissionsController } from "./submissionsController";
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/server/lib/currentUser", () => ({ getCurrentCandidate: vi.fn() }));
 vi.mock("@/server/database/dao", () => ({ projectsDao: {}, submissionsDao: {} }));
+vi.mock("@/server/lib/db", () => ({ db: {} }));
+vi.mock("@/server/lib/supabase/admin", () => ({
+  createAdminClient: () => ({}),
+}));
 vi.mock("@/server/services/submissions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/services/submissions")>()),
   submissionsService: { submit: vi.fn(), listMine: vi.fn(), getMine: vi.fn() },
